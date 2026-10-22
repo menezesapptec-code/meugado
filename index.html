@@ -914,7 +914,7 @@ function sheetCompra(){
  var dono=isDono(),loteFase=function(f){var l=LOTES.filter(function(x){return x.fase===f})[0];return (l||LOTES[0]).nome};
  var row=function(){return '<div class="grid2 crow" style="grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);margin-bottom:8px"><div class="field" style="margin:0"><input class="c_id" inputmode="numeric" autocomplete="off" placeholder="Brinco"></div><div class="inp"><input class="c_kg" type="number" inputmode="decimal" step="any" min="0" placeholder="Peso"><span>kg</span></div></div>'};
  openSheet('Comprar animais','<form id="fCompra" novalidate>'
-  +'<p class="muted small" style="margin-bottom:10px">Use quando você compra animais. Preencha o que é igual para todos e depois digite o brinco de cada um.</p>'
+  +'<p class="muted small" style="margin-bottom:10px">Use quando você compra animais. Preencha o que é igual para todos; os brincos podem ser gerados automaticamente.</p>'
   +field('c_orig','De onde comprou (fazenda ou vendedor)','<input id="c_orig" autocomplete="off" placeholder="Ex.: Fazenda Santa Maria">')
   +'<div class="grid2">'+field('c_data','Data da compra','<input id="c_data" type="date" value="'+TODAY+'" max="'+TODAY+'">')
   +field('c_raca','Raça','<select id="c_raca">'+options(RACAS,'Nelore')+'</select>')+'</div>'
@@ -926,15 +926,26 @@ function sheetCompra(){
   +field('c_lote','Colocar no lote','<select id="c_lote">'+options(LOTES.map(function(l){return l.nome}),loteFase('Matriz'))+'</select>')
   +(dono?'<div class="grid2">'+field('c_vt','O valor informado é','<select id="c_vt">'+options([['cab','Preço por animal'],['tot','Valor total']],'cab')+'</select>')
    +field('c_v','Valor',inputNum('c_v','','R$'))+'</div><div class="muted small" id="c_sum" style="margin:-4px 0 10px"></div>':'')
-  +'<h3 style="margin:6px 0 8px">Brincos dos animais</h3><div id="c_rows">'+row()+'</div>'
-  +'<button class="btn sm" type="button" id="c_add" style="margin-bottom:10px">'+ic('plus',16)+'Adicionar outro brinco</button>'
+  +'<h3 style="margin:6px 0 8px">Brincos dos animais</h3>'
+  +field('c_modo','Como quer cadastrar','<select id="c_modo">'+options([['lote','Em lote (brincos automáticos)'],['um','Um por um']],'lote')+'</select>')
+  +'<div id="c_loteW"><div class="grid2">'+field('c_qtd','Quantos animais',inputNum('c_qtd','','cab'))+field('c_ini','Primeiro brinco','<input id="c_ini" autocomplete="off" placeholder="Ex.: 001">')+'</div>'
+  +field('c_pm','Peso médio (opcional)',inputNum('c_pm','','kg'))+'<div class="muted small" id="c_faixa" style="margin:-4px 0 10px"></div></div>'
+  +'<div id="c_umW" hidden><div id="c_rows">'+row()+'</div>'
+  +'<button class="btn sm" type="button" id="c_add" style="margin-bottom:10px">'+ic('plus',16)+'Adicionar outro brinco</button></div>'
   +'<div class="muted small" id="c_cnt" style="margin-bottom:6px"></div><div class="err" id="c_err"></div>'
   +'<button class="btn p block" type="submit">Registrar compra</button></form>');
- var ids=function(){return [].slice.call(document.querySelectorAll('#c_rows .crow')).map(function(r){return {id:brincoId(r.querySelector('.c_id').value),kgTxt:r.querySelector('.c_kg').value.trim(),kg:parseFloat(r.querySelector('.c_kg').value)}}).filter(function(x){return x.id})};
- var sum=function(){var n=ids().length;$('#c_cnt').textContent=n?n+(n>1?' animais nesta compra':' animal nesta compra'):'';
+ var seqIds=function(){var n=Math.floor(numVal('c_qtd')),ini=brincoId($('#c_ini').value),m=/^(.*?)(\d+)$/.exec(ini);
+  if(!(n>=1)||!m)return [];var w=m[2].length,start=parseInt(m[2],10),pm=numVal('c_pm'),o=[];
+  for(var i=0;i<n;i++){var d=String(start+i);while(d.length<w)d='0'+d;o.push({id:m[1]+d,kgTxt:pm>0?'x':'',kg:pm})}return o};
+ var modoLote=function(){return $('#c_modo').value==='lote'};
+ var ids=function(){if(modoLote())return seqIds();return [].slice.call(document.querySelectorAll('#c_rows .crow')).map(function(r){return {id:brincoId(r.querySelector('.c_id').value),kgTxt:r.querySelector('.c_kg').value.trim(),kg:parseFloat(r.querySelector('.c_kg').value)}}).filter(function(x){return x.id})};
+ var sum=function(){var n=ids().length;
+  if(modoLote()){var q=seqIds();$('#c_faixa').textContent=q.length?'Vão de '+q[0].id+' até '+q[q.length-1].id+' ('+q.length+' brincos).':''}$('#c_cnt').textContent=n?n+(n>1?' animais nesta compra':' animal nesta compra'):'';
   if(dono){var v=numVal('c_v'),t=$('#c_vt').value==='tot'?v:v*n;$('#c_sum').textContent=v>0&&n?'Total da compra: '+brl(t)+(n>1?' ('+brl(t/n)+' por animal)':''):''}};
  var catC=function(){return CATCOMPRA.filter(function(c){return c[0]===$('#c_cat').value})[0]};
  var sync=function(){var c=catC(),m=c[3]==='Matriz';$('#c_repW').hidden=!m;$('#c_partoW').hidden=!(m&&$('#c_rep').value==='prenha')};
+ $('#c_modo').onchange=function(){$('#c_loteW').hidden=!modoLote();$('#c_umW').hidden=modoLote();sum()};
+ $('#c_loteW').oninput=sum;
  $('#c_cat').onchange=function(){$('#c_lote').value=loteFase(catC()[3]);sync()};
  $('#c_rep').onchange=sync;
  $('#c_raca').onchange=function(){$('#c_outraW').hidden=this.value!=='Outra'};
@@ -944,6 +955,10 @@ function sheetCompra(){
  sync();
  $('#fCompra').onsubmit=function(e){e.preventDefault();
   var l=ids(),c=catC(),data=$('#c_data').value||TODAY;
+  if(modoLote()){if(!/\d$/.test(brincoId($('#c_ini').value)))return setErr('c_err','O primeiro brinco precisa terminar em número. Ex.: 001 ou A-101.');
+   if(!(numVal('c_qtd')>=1))return setErr('c_err','Diga quantos animais você comprou.');
+   if(numVal('c_qtd')>499)return setErr('c_err','Cadastre no máximo 499 animais por vez.');
+   if(numVal('c_pm')>0&&!pesOk(numVal('c_pm')))return setErr('c_err',PESO_MSG)}
   if(!l.length)return setErr('c_err','Digite o brinco de pelo menos um animal.');
   if(data>TODAY)return setErr('c_err','A data não pode ser no futuro.');
   var seen={};for(var i=0;i<l.length;i++){var x=l[i];
