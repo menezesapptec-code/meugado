@@ -145,6 +145,8 @@ a.btn.p{color:var(--on-green)}
 .btn:disabled{opacity:.6;cursor:default}
 .linkbtn.muted{color:var(--muted)}
 .linkbtn.small{font-size:13px}
+.nav button{position:relative}
+.badge{position:absolute;top:3px;left:calc(50% + 6px);min-width:18px;height:18px;border-radius:9px;background:var(--bad);color:#fff;font:700 11px/18px var(--body);font-style:normal;padding:0 5px;text-align:center}
 .linkbtn.ul{text-decoration:underline;color:var(--green)}
 </style>
 </head>
@@ -164,12 +166,12 @@ a.btn.p{color:var(--on-green)}
 <!-- 1) Cole aqui a configuração do seu projeto Firebase (Configurações do projeto > Seus apps > Web) -->
 <script>
 window.FIREBASE_CONFIG={
-  apiKey:"COLE_AQUI_A_API_KEY",
-  authDomain:"SEU-PROJETO.firebaseapp.com",
-  projectId:"SEU-PROJETO",
-  storageBucket:"SEU-PROJETO.appspot.com",
-  messagingSenderId:"000000000000",
-  appId:"1:000000000000:web:0000000000000000"
+  apiKey:"AIzaSyAXTsQgARPpkSEKaTrKitIIpFlDFBVhcn0",
+  authDomain:"meugado-b8ed6.firebaseapp.com",
+  projectId:"meugado-b8ed6",
+  storageBucket:"meugado-b8ed6.firebasestorage.app",
+  messagingSenderId:"684217387194",
+  appId:"1:684217387194:web:4ab5a7db351cf6a359da83"
 };
 window.ADMIN_EMAILS=["agrosafra7@gmail.com","menezesapptec@gmail.com"];
 </script>
@@ -220,12 +222,13 @@ var CAUSAS={
 
 /* ---------- estado e dados ---------- */
 var state={tab:'inicio',sub:{rebanho:'lotes',estoque:'insumos',fin:'resumo',mais:'mkt'},
- fLote:'Todos',busca:'',atras:false,limit:40,plote:'',mkt:'Todos',simMode:'comprar',arroba:0,bezerroKg:0,simInit:false,
+ fLote:'Todos',busca:'',atras:false,limit:40,plote:'',mkt:'Todos',simMode:'comprar',arroba:0,bezerroKg:0,simInit:false,admQ:'',
  sim:{qtd:50,pIn:200,pk:15,pOut:500,gmd:.9,cd:6,ar:0,rend:52,perda:2,vLote:'',vQtd:20,vFrete:60,vEsp:60,vCd:6}};
 var S={stage:'load',user:null,perfil:null,faz:null,authMode:'entrar',nome:''};
-var animals=[],LOTES=[],ESTQ=[],PROTO=[],PERDAS=[],LANC=[],ADS=[],CONV=[];
+var animals=[],LOTES=[],ESTQ=[],PROTO=[],PERDAS=[],LANC=[],ADS=[],CONV=[],CAD=[];
 var isDono=function(){return !S.perfil||S.perfil.papel==='dono'};
-var isAdmin=function(){return !!(S.user&&S.user.email&&ADMINS.indexOf(S.user.email.toLowerCase())>-1)};
+var isAdmin=function(){return !!(S.user&&S.user.emailVerified&&S.user.email&&ADMINS.indexOf(S.user.email.toLowerCase())>-1)};
+var nPend=function(){return CAD.filter(function(c){return c.status==='pendente'}).length};
 var INS=function(){return ESTQ.filter(function(x){return x.tipo==='insumo'})};
 var SAN=function(){return ESTQ.filter(function(x){return x.tipo==='sanidade'})};
 var cmpId=function(a,b){return String(a.id).localeCompare(String(b.id),'pt-BR',{numeric:true})};
@@ -281,6 +284,7 @@ function alerts(){
  PROTO.forEach(function(p){if(p.feito)return;var d=dd(TODAY,p.prazo);
   if(d<0)out.push({t:'bad',m:p.n+' está atrasado desde '+fdm(p.prazo),tab:'estoque',sub:'sanidade'});
   else if(d<=30)out.push({t:'warn',m:p.n+' até '+fdm(p.prazo),tab:'estoque',sub:'sanidade'})});
+ if(isAdmin()&&nPend())out.push({t:'warn',m:nPend()+(nPend()>1?' cadastros aguardando aprovação':' cadastro aguardando aprovação'),tab:'mais',sub:'adm'});
  var av=arrobaVelha();
  if(isDono()&&av!=null&&av>7)out.push({t:'warn',m:'A cotação da @ não é atualizada há '+av+' dias',act:'arroba'});
  return out.sort(function(a,b){return (a.t==='bad'?0:1)-(b.t==='bad'?0:1)});
@@ -376,9 +380,11 @@ var fid=function(){return S.perfil.fazendaId};
 var fref=function(){return db.collection('fazendas').doc(fid())};
 var col=function(n){return fref().collection(n)};
 var unsubs=[];
-function stopData(){unsubs.forEach(function(u){try{u()}catch(e){}});unsubs=[];animals=[];LOTES=[];ESTQ=[];PROTO=[];PERDAS=[];LANC=[];ADS=[];CONV=[]}
+function stopData(){unsubs.forEach(function(u){try{u()}catch(e){}});unsubs=[];animals=[];LOTES=[];ESTQ=[];PROTO=[];PERDAS=[];LANC=[];ADS=[];CONV=[];CAD=[]}
 function listen(q,fn){unsubs.push(q.onSnapshot(fn,function(e){console.warn('listener',e&&e.code)}))}
 var docs=function(q){return q.docs.map(function(x){var o=x.data();o.id=x.id;return o})};
+function listenAdmin(){listen(db.collection('cadastros').orderBy('criado','desc').limit(300),function(q){CAD=docs(q);sched()})}
+function startAdmin(){stopData();listenAdmin()}
 function startData(){
  stopData();
  listen(fref(),function(d){
@@ -398,6 +404,7 @@ function startData(){
   listen(col('lancamentos'),function(q){LANC=docs(q).sort(function(a,b){return a.d<b.d?1:a.d>b.d?-1:(b.criado||0)-(a.criado||0)});sched()});
   listen(db.collection('convites').where('fazendaId','==',fid()),function(q){CONV=docs(q);sched()});
  }
+ if(isAdmin())listenAdmin();
  listen(db.collection('anuncios').orderBy('criado','desc').limit(60),function(q){ADS=docs(q);sched()});
 }
 function fail(e){
@@ -435,7 +442,7 @@ function render(){
  $('#roleBtn').innerHTML='<small>'+esc((S.perfil.nome||'').split(' ')[0])+'</small><b>'+(isDono()?'Dono':'Ajudante')+'</b>';
  $('#main').innerHTML=views[state.tab]();
  $('#nav').innerHTML=TABS.filter(function(t){return isDono()||t[0]!=='fin'}).map(function(t){
-  return '<button data-a="tab" data-v="'+t[0]+'"'+(state.tab===t[0]?' aria-current="page"':'')+'>'+ic(t[2])+t[1]+'</button>'}).join('');
+  return '<button data-a="tab" data-v="'+t[0]+'"'+(state.tab===t[0]?' aria-current="page"':'')+'>'+ic(t[2])+t[1]+(t[0]==='mais'&&isAdmin()&&nPend()?'<i class="badge">'+nPend()+'</i>':'')+'</button>'}).join('');
  if(state.tab==='fin'&&state.sub.fin==='sim')simCalc();
 }
 var tt;
@@ -680,7 +687,9 @@ function simCalc(){
 
 var ago=function(ms){var m=Math.round((Date.now()-ms)/60000);if(m<2)return 'agora';if(m<60)return 'há '+m+' min';var h=Math.round(m/60);if(h<24)return 'há '+h+' h';var d=Math.round(h/24);return d<14?'há '+d+(d>1?' dias':' dia'):'há '+Math.round(d/7)+' semanas'};
 function vMais(){
- var s=state.sub.mais,h=seg('mais',[['mkt','Marketplace'],['app','Instalar app'],['equipe','Equipe']]);
+ var s=state.sub.mais;if(s==='adm'&&!isAdmin())s=state.sub.mais='mkt';
+ var h=seg('mais',[['mkt','Marketplace'],['app','Instalar app'],['equipe','Equipe']].concat(isAdmin()?[['adm','Admin']]:[]));
+ if(s==='adm')return h+vAdm();
  if(s==='mkt'){
   var L=ADS.filter(function(a){return state.mkt==='Todos'||a.t===state.mkt});
   return h+'<button class="btn p block" data-a="anunciar">'+ic('plus',18)+'Anunciar</button><div style="margin-top:12px">'+chips(['Todos','Gado','Insumos','Máquinas'],state.mkt,'mkt')+'</div>'
@@ -706,6 +715,23 @@ function vMais(){
  return h+eq+'<button class="btn block" style="margin-top:12px" data-a="sair">Sair da conta</button></div>';
 }
 views.estoque=vEstoque;views.fin=vFin;views.mais=vMais;
+
+function admListHTML(){
+ var q=(state.admQ||'').toLowerCase(),me=S.user.uid;
+ var f=function(c){return !q||String(c.email).toLowerCase().indexOf(q)>-1||String(c.nome||'').toLowerCase().indexOf(q)>-1};
+ var P=CAD.filter(function(c){return c.status==='pendente'}),Ap=CAD.filter(function(c){return c.status==='aprovado'&&f(c)}),Bl=CAD.filter(function(c){return c.status==='bloqueado'&&f(c)});
+ var row=function(c,b){return '<div class="row"><div><b style="font-size:16px">'+esc(c.nome||'Sem nome')+'</b><div class="muted small">'+esc(c.email)+' · '+ago(c.criado||0)+'</div></div><div class="r">'+b+'</div></div>'};
+ var h='<div class="sec"><h2>Aguardando aprovação ('+P.length+')</h2><div class="card list">'
+  +(P.length?P.map(function(c){return row(c,'<button class="btn sm p" data-a="aprovar" data-id="'+esc(c.id)+'">Aprovar</button><button class="linkbtn muted small" data-a="bloquear" data-id="'+esc(c.id)+'">Recusar</button>')}).join(''):'<div class="muted">Nenhum cadastro aguardando.</div>')+'</div></div>'
+  +'<div class="sec"><h2>Aprovados ('+Ap.length+')</h2><div class="card list">'
+  +(Ap.length?Ap.slice(0,60).map(function(c){return row(c,c.id===me?'<span class="pill mute">Você</span>':'<button class="btn sm" data-a="bloquear" data-id="'+esc(c.id)+'">Bloquear</button>')}).join(''):'<div class="muted">Nenhum cadastro encontrado.</div>')+'</div></div>';
+ if(Bl.length)h+='<div class="sec"><h2>Bloqueados ('+Bl.length+')</h2><div class="card list">'+Bl.map(function(c){return row(c,'<button class="btn sm" data-a="reativar" data-id="'+esc(c.id)+'">Reativar</button>')}).join('')+'</div></div>';
+ return h;
+}
+function vAdm(){
+ if(!isAdmin())return '';
+ return '<input class="search" id="admBusca" type="search" placeholder="Buscar por nome ou e-mail" value="'+esc(state.admQ)+'" aria-label="Buscar cadastro"><div id="admList">'+admListHTML()+'</div>';
+}
 
 /* ---------- formulários ---------- */
 var pesOk=function(kg){return kg>=15&&kg<=1200};
@@ -976,9 +1002,11 @@ function authErr(e){
 var emailF=function(){return field('au_e','E-mail','<input id="au_e" type="email" inputmode="email" autocomplete="email" autocapitalize="none">')};
 var passF=function(nw){return field('au_p','Senha','<input id="au_p" type="password" autocomplete="'+(nw?'new-password':'current-password')+'">')};
 function stageView(){
- var T={config:'Falta configurar',load:'Carregando',auth:'Bem-vindo',onb:'Sua fazenda',erro:'Sem conexão'},h='';
+ var T={config:'Falta configurar',load:'Carregando',auth:'Bem-vindo',onb:'Sua fazenda',erro:'Sem conexão',pend:'Cadastro em análise',bloq:'Acesso bloqueado',adm:'Painel administrativo'},h='';
  $('#pageTitle').textContent=T[S.stage]||'';
- if(S.stage==='config')h='<div class="card"><h3>Falta ligar o Firebase</h3><p class="muted">Abra o arquivo index.html e troque os valores de FIREBASE_CONFIG, no começo do arquivo, pelos dados do seu projeto Firebase.</p></div>';
+ if(S.stage==='config')h=!configured
+  ?'<div class="card"><h3>Falta colar a configuração do Firebase</h3><p class="muted">Este index.html ainda está com o valor de exemplo (COLE_AQUI) em FIREBASE_CONFIG. Suba para o GitHub o arquivo com os dados do projeto e espere a Vercel publicar de novo.</p></div>'
+  :'<div class="card"><h3>Não consegui carregar o Firebase</h3><p class="muted">A configuração está certa, mas os arquivos do Firebase não abriram. Confira a internet, desligue bloqueadores de anúncio para este site e tente de novo.</p><button class="btn p block" data-a="recarregar">Tentar de novo</button></div>';
  else if(S.stage==='load')h='<div class="card"><div class="muted">Abrindo sua fazenda…</div></div>';
  else if(S.stage==='erro')h='<div class="card"><h3>Não consegui abrir seus dados</h3><p class="muted">Confira a internet e tente de novo.</p><button class="btn p block" data-a="recarregar">Tentar de novo</button></div>';
  else if(S.stage==='auth'){
@@ -989,13 +1017,25 @@ function stageView(){
    +'<button class="btn block" style="margin-top:10px" data-a="authmode" data-v="entrar">Já tenho conta</button>';
   else h='<form class="card" id="fSenha" novalidate><p class="muted" style="margin-top:0">Digite seu e-mail. Enviamos um link para criar uma senha nova.</p>'+emailF()+'<div class="err" id="au_err"></div><button class="btn p block" type="submit">Enviar link</button></form>'
    +'<button class="btn block" style="margin-top:10px" data-a="authmode" data-v="entrar">Voltar</button>';
+ }else if(S.stage==='pend'){
+  var vf=ADMINS.indexOf((S.user.email||'').toLowerCase())>-1&&!S.user.emailVerified;
+  h='<div class="card"><h3>Estamos analisando seu cadastro</h3><p class="muted" style="margin:6px 0 0">Assim que o administrador aprovar, o app libera sozinho. Você pode fechar e voltar depois.</p></div>'
+   +(vf?'<div class="card" style="margin-top:12px"><h3>Confirme seu e-mail</h3><p class="muted" style="margin:6px 0 12px">Você é administrador. Abra o e-mail que enviamos, toque no link de confirmação e depois em Já confirmei.</p><button class="btn p block" data-a="verificado">Já confirmei</button><button class="btn block" style="margin-top:8px" data-a="reenviar">Reenviar e-mail</button></div>':'')
+   +codForm('Fui convidado por um dono','Se o dono da fazenda enviou um código, digite aqui. Seu acesso é liberado na hora.')
+   +'<button class="linkbtn muted" style="margin:14px 0;min-height:44px" data-a="sair">Sair da conta</button>';
+ }else if(S.stage==='bloq'){
+  h='<div class="card"><h3>Seu acesso está bloqueado</h3><p class="muted" style="margin:6px 0 12px">Fale com o administrador do sistema para entender o motivo.</p><button class="btn block" data-a="sair">Sair da conta</button></div>';
+ }else if(S.stage==='adm'){
+  h=vAdm()+'<button class="btn p block" style="margin-top:14px" data-a="criarfaz">Criar minha fazenda</button><button class="btn block" style="margin-top:8px" data-a="sair">Sair da conta</button>';
  }else if(S.stage==='onb'){
   h='<form class="card" id="fFaz" novalidate><h3>Sou o dono da fazenda</h3><p class="muted" style="margin:6px 0 12px">Crie a sua fazenda e comece a lançar o rebanho.</p>'+field('on_f','Nome da fazenda','<input id="on_f" maxlength="50" autocomplete="off">')+'<div class="err" id="on_err"></div><button class="btn p block" type="submit">Criar minha fazenda</button></form>'
-   +'<form class="card" id="fCod" novalidate style="margin-top:12px"><h3>Tenho um código de convite</h3><p class="muted" style="margin:6px 0 12px">O dono da fazenda gera o código na aba Mais, em Equipe.</p>'+field('on_c','Código','<input id="on_c" maxlength="8" autocapitalize="characters" autocomplete="off" style="letter-spacing:.1em;text-transform:uppercase">')+'<div class="err" id="cod_err"></div><button class="btn block" type="submit">Entrar na fazenda</button></form>'
+   +codForm('Tenho um código de convite','O dono da fazenda gera o código na aba Mais, em Equipe.')
+   +(isAdmin()?'<button class="btn block" style="margin-top:12px" data-a="painel">Voltar ao painel administrativo</button>':'')
    +'<button class="linkbtn muted" style="margin:14px 0;min-height:44px" data-a="sair">Sair da conta</button>';
  }
  $('#main').innerHTML=h;bindStage();
 }
+function codForm(t,p){return '<form class="card" id="fCod" novalidate style="margin-top:12px"><h3>'+t+'</h3><p class="muted" style="margin:6px 0 12px">'+p+'</p>'+field('on_c','Código','<input id="on_c" maxlength="8" autocapitalize="characters" autocomplete="off" style="letter-spacing:.1em;text-transform:uppercase">')+'<div class="err" id="cod_err"></div><button class="btn block" type="submit">Entrar na fazenda</button></form>'}
 function busy(f,on,txt){var b=f.querySelector('button[type=submit]');if(!b)return;if(on){b.dataset.t=b.textContent;b.textContent=txt||'Aguarde…';b.disabled=true}else{b.textContent=b.dataset.t||b.textContent;b.disabled=false}}
 function bindStage(){
  var f;
@@ -1033,6 +1073,7 @@ function entrarConvite(code){
   var perfil={fazendaId:c.data().fazendaId,papel:'ajudante',nome:nomeUser(),email:u.email||'',convite:code};
   var b=db.batch();
   b.set(db.collection('usuarios').doc(u.uid),perfil);
+  b.update(db.collection('cadastros').doc(u.uid),{status:'aprovado',convite:code,aprovadoEm:Date.now()});
   b.update(db.collection('convites').doc(code),{usado:true,usadoPor:u.uid,usadoNome:perfil.nome});
   return b.commit().then(function(){S.perfil=perfil;S.stage='app';startData();render()});
  });
@@ -1127,6 +1168,13 @@ var A={
  vazia:function(d){closeSheet();wr(col('animais').doc(d.id).update({rep:'vazia',parto:FV.delete()}),'Matriz '+d.id+' marcada como vazia')},
  exemplo:loadExample,rmexemplo:rmExample,
  instalar:function(){if(deferred){deferred.prompt();deferred=null}else toast('Abra o menu do navegador e toque em Instalar app (ou Adicionar à Tela de Início).')},
+ aprovar:function(d){wr(db.collection('cadastros').doc(d.id).update({status:'aprovado',aprovadoEm:Date.now(),aprovadoPor:S.user.email}),'Cadastro aprovado')},
+ reativar:function(d){wr(db.collection('cadastros').doc(d.id).update({status:'aprovado',aprovadoEm:Date.now(),aprovadoPor:S.user.email}),'Acesso reativado')},
+ bloquear:function(d){sheetConfirm('Bloquear acesso','Essa pessoa não conseguirá mais entrar no app.','Bloquear',function(){wr(db.collection('cadastros').doc(d.id).update({status:'bloqueado',bloqueadoEm:Date.now()}),'Acesso bloqueado')})},
+ criarfaz:function(){S.stage='onb';render()},
+ painel:function(){S.stage='adm';startAdmin();render()},
+ verificado:function(){var u=auth.currentUser;if(!u)return;u.reload().then(function(){return u.getIdToken(true)}).then(function(){if(u.emailVerified)boot(u);else toast('Ainda não confirmado. Abra o link no e-mail e tente de novo.')}).catch(fail)},
+ reenviar:function(){var u=auth.currentUser;if(u)u.sendEmailVerification().then(function(){toast('E-mail enviado')}).catch(function(){toast('Aguarde alguns minutos para pedir outro e-mail.')})},
  close:closeSheet
 };
 function byFaseNome(f){return (LOTES.filter(function(l){return l.fase===f})[0]||LOTES[0]).nome}
@@ -1136,6 +1184,7 @@ document.addEventListener('click',function(e){
 });
 document.addEventListener('input',function(e){
  var t=e.target;
+ if(t.id==='admBusca'){state.admQ=t.value.trim();$('#admList').innerHTML=admListHTML();return}
  if(t.id==='busca'){state.busca=t.value.trim();state.limit=40;$('#animList').innerHTML=animListHTML();return}
  if(t.dataset&&t.dataset.sim&&t.dataset.sim!=='vLote'){state.sim[t.dataset.sim]=parseFloat(t.value)||0;simCalc()}
 });
@@ -1155,18 +1204,42 @@ try{
  var l2=document.createElement('link');l2.rel='apple-touch-icon';l2.href=icon;document.head.appendChild(l2);
 }catch(e){}
 
+/* ---------- entrada: aprovação do cadastro ---------- */
+var cadUnsub=null;
+function boot(u){
+ stopData();if(cadUnsub){cadUnsub();cadUnsub=null}
+ S.user=u;S.perfil=null;S.faz=null;S.cad=null;S.loadingP=false;
+ if(!u){S.stage='auth';S.authMode='entrar';render();return}
+ S.stage='load';render();watchCad(u);
+}
+function watchCad(u){
+ var ref=db.collection('cadastros').doc(u.uid);
+ cadUnsub=ref.onSnapshot(function(d){
+  if(!S.user||S.user.uid!==u.uid)return;
+  if(!d.exists){ref.set({nome:nomeUser(),email:u.email||'',status:isAdmin()?'aprovado':'pendente',criado:Date.now()}).catch(function(){S.stage='erro';render()});return}
+  S.cad=d.data();var st=S.cad.status;
+  if(st==='bloqueado'){stopData();S.perfil=null;S.stage='bloq';render();return}
+  if(st==='pendente'){
+   if(isAdmin())ref.update({status:'aprovado',aprovadoEm:Date.now()}).catch(function(){});
+   if(S.stage!=='pend'){stopData();S.perfil=null;S.stage='pend';render()}
+   return;
+  }
+  if(S.stage==='app'||S.stage==='onb'||S.stage==='adm'||S.loadingP)return;
+  S.loadingP=true;
+  db.collection('usuarios').doc(u.uid).get().then(function(p){
+   S.loadingP=false;
+   if(p.exists){S.perfil=p.data();S.stage='app';startData();render()}
+   else if(isAdmin()){S.stage='adm';startAdmin();render()}
+   else{S.stage='onb';render()}
+  }).catch(function(){S.loadingP=false;S.stage='erro';render()});
+ },function(){S.stage='erro';render()});
+}
+
 /* ---------- início ---------- */
 if(!configured||!window.firebase){S.stage='config';render()}
 else{
  render();
- auth.onAuthStateChanged(function(u){
-  stopData();S.user=u;S.perfil=null;S.faz=null;
-  if(!u){S.stage='auth';S.authMode='entrar';render();return}
-  S.stage='load';render();
-  db.collection('usuarios').doc(u.uid).get().then(function(d){
-   if(d.exists){S.perfil=d.data();S.stage='app';startData();render()}else{S.stage='onb';render()}
-  }).catch(function(){S.stage='erro';render()});
- });
+ auth.onAuthStateChanged(boot);
 }
 })();
 
