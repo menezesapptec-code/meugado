@@ -49,8 +49,8 @@ h3{font:700 17px/1.2 var(--display);margin:0}
 .rolebtn b{font-size:14px}
 .sec{margin-top:22px}.sec>h2{margin-bottom:10px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
-.stack{display:grid;gap:10px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stack{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}.stack>*{min-width:0}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.grid2>*{min-width:0}.grid2 select,.grid2 input{width:100%;min-width:0}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
 .between{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .l{font-size:12px;color:var(--muted);font-weight:600}
@@ -147,6 +147,9 @@ a.btn.p{color:var(--on-green)}
 .linkbtn.small{font-size:13px}
 .nav button{position:relative}
 .badge{position:absolute;top:3px;left:calc(50% + 6px);min-width:18px;height:18px;border-radius:9px;background:var(--bad);color:#fff;font:700 11px/18px var(--body);font-style:normal;padding:0 5px;text-align:center}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.tbl th{font-size:11px;color:var(--muted);text-align:left;padding:6px 10px 6px 0;white-space:nowrap}
+.tbl td{padding:8px 10px 8px 0;border-top:1px solid var(--line);white-space:nowrap}
 .linkbtn.ul{text-decoration:underline;color:var(--green)}
 </style>
 </head>
@@ -222,7 +225,7 @@ var CAUSAS={
 
 /* ---------- estado e dados ---------- */
 var state={tab:'inicio',sub:{rebanho:'lotes',estoque:'insumos',fin:'resumo',mais:'mkt'},
- fLote:'Todos',busca:'',atras:false,limit:40,plote:'',mkt:'Todos',simMode:'comprar',arroba:0,bezerroKg:0,simInit:false,admQ:'',
+ fLote:'Todos',busca:'',atras:false,limit:40,plote:'',mkt:'Todos',simMode:'comprar',arroba:0,bezerroKg:0,simInit:false,admQ:'',criaInit:false,cria:{qtd:100,precoVaca:4500,custoInsem:120,taxa:65,inicio:TODAY,anos:3,desm:7,pesoDesm:190,pkM:17,pkF:15,modo:'reter',pctRet:100,idade1:24,estacao:90,mortMat:2,mortBez:4,pesoMat:450,custoMes:70,gVaca:80,gBez:20,pkMin:6.5,sanBez:45,arroba:320},
  sim:{qtd:50,pIn:200,pk:15,pOut:500,gmd:.9,cd:6,ar:0,rend:52,perda:2,vLote:'',vQtd:20,vFrete:60,vEsp:60,vCd:6}};
 var S={stage:'load',user:null,perfil:null,faz:null,authMode:'entrar',nome:''};
 var animals=[],LOTES=[],ESTQ=[],PROTO=[],PERDAS=[],LANC=[],ADS=[],CONV=[],CAD=[];
@@ -309,25 +312,25 @@ var ic=function(n,s){s=s||22;return '<svg width="'+s+'" height="'+s+'" viewBox="
 /* ---------- gráficos ---------- */
 function nice(x){var p=Math.pow(10,Math.floor(Math.log10(x))),f=x/p;return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p}
 function svgOpen(w,h,label){return '<svg viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+esc(label)+'" style="width:100%;height:auto;display:block">'}
-function lineChart(pts,label){
- var W=340,H=190,L=36,Rr=16,T=18,B=26;
+function lineChart(pts,label,opt){
+ opt=opt||{};var W=340,H=190,L=opt.L||36,Rr=16,T=18,B=26;
  var ys=pts.map(function(p){return p.y}),mn=Math.min.apply(null,ys),mx=Math.max.apply(null,ys);
  if(mn===mx){mn-=1;mx+=1}
  var step=nice((mx-mn)*1.2/4);mn=Math.floor(mn/step)*step;mx=Math.ceil(mx/step)*step;
  var x=function(i){return L+(pts.length===1?(W-L-Rr)/2:i*(W-L-Rr)/(pts.length-1))};
  var y=function(v){return T+(1-(v-mn)/(mx-mn))*(H-T-B)};
  var s=svgOpen(W,H,label),v;
- for(v=mn;v<=mx+1e-9;v+=step){s+='<line x1="'+L+'" x2="'+(W-Rr)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--line)" stroke-width="1"/><text class="t" x="'+(L-6)+'" y="'+(y(v)+3)+'" text-anchor="end">'+num(v,step%1?1:0)+'</text>'}
+ for(v=mn;v<=mx+1e-9;v+=step){s+='<line x1="'+L+'" x2="'+(W-Rr)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--line)" stroke-width="1"/><text class="t" x="'+(L-6)+'" y="'+(y(v)+3)+'" text-anchor="end">'+(opt.fmt?opt.fmt(v):num(v,step%1?1:0))+'</text>'}
  var d=pts.map(function(p,i){return (i?'L':'M')+x(i).toFixed(1)+' '+y(p.y).toFixed(1)}).join(' ');
  s+='<path d="'+d+' L'+x(pts.length-1)+' '+(H-B)+' L'+x(0)+' '+(H-B)+' Z" fill="var(--c1)" opacity=".13"/>';
  s+='<path d="'+d+'" fill="none" stroke="var(--c1)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
  pts.forEach(function(p,i){
   var k=pts.length>7?Math.ceil(pts.length/6):1;
-  if(i%k===0||i===pts.length-1)s+='<text class="t" x="'+x(i)+'" y="'+(H-8)+'" text-anchor="middle">'+fdm(p.d)+'</text>';
+  if(i%k===0||i===pts.length-1)s+='<text class="t" x="'+x(i)+'" y="'+(H-8)+'" text-anchor="middle">'+(p.l||fdm(p.d))+'</text>';
   s+='<circle cx="'+x(i)+'" cy="'+y(p.y)+'" r="'+(i===pts.length-1?5:3)+'" fill="var(--surface)" stroke="var(--c1)" stroke-width="2"/>';
  });
  var lp=pts[pts.length-1];
- s+='<text class="tv" x="'+Math.min(x(pts.length-1),W-18)+'" y="'+(y(lp.y)-10)+'" text-anchor="middle">'+num(lp.y)+' kg</text>';
+ s+='<text class="tv" x="'+Math.min(x(pts.length-1),W-(opt.last?30:18))+'" y="'+(y(lp.y)-10)+'" text-anchor="middle">'+(opt.last?opt.last(lp.y):num(lp.y)+' kg')+'</text>';
  return s+'</svg>';
 }
 function barChart(items,label){
@@ -390,7 +393,8 @@ function startData(){
  listen(fref(),function(d){
   S.faz=d.exists?d.data():null;
   if(S.faz){state.arroba=+S.faz.arroba||0;state.bezerroKg=+S.faz.bezerroKg||0;
-   if(!state.simInit&&state.arroba>0){state.sim.ar=state.arroba;state.simInit=true}}
+   if(!state.simInit&&state.arroba>0){state.sim.ar=state.arroba;state.simInit=true}
+   if(!state.criaInit&&state.arroba>0){state.cria.arroba=state.arroba;if(state.bezerroKg>0){state.cria.pkM=state.bezerroKg;state.cria.pkF=Math.round(state.bezerroKg*9)/10}state.criaInit=true}}
   sched()});
  listen(col('animais'),function(q){animals=docs(q).sort(cmpId);sched()});
  listen(col('lotes'),function(q){
@@ -605,8 +609,9 @@ function lancRow(l){
 }
 function vFin(){
  if(!isDono())return '<div class="card"><h3>Só o dono vê o financeiro</h3><p class="muted">Na visão do ajudante, valores e gastos ficam escondidos.</p></div>';
- var s=state.sub.fin,h=seg('fin',[['resumo','Resumo'],['gastos','Gastos'],['perdas','Perdas'],['sim','Simulador']]);
+ var s=state.sub.fin,h=seg('fin',[['resumo','Resumo'],['pat','Patrimônio'],['gastos','Gastos'],['perdas','Perdas'],['sim','Simulador']]);
  var mn=mesNome(mesAtual());
+ if(s==='pat')return h+vPat();
  if(s==='resumo'){
   var g=totGasto(),rec=receitaMes(),res=rec-g,n=Math.max(1,animals.length);
   return h+'<div class="row2"><button class="btn p" data-a="venda">'+ic('tag',18)+'Registrar venda</button><button class="btn" data-a="gasto">'+ic('coin',18)+'Lançar gasto</button></div>'
@@ -642,9 +647,9 @@ function vFin(){
      return '<div class="card"><div class="between"><b>'+esc(a.label)+'</b><span class="pill bad">'+a.n+(state.arroba>0||a.v?' · '+brl(a.v):'')+'</span></div><p class="muted" style="margin:8px 0 0">'+esc(CAUSAS[a.label]||'')+'</p></div>'}).join('')+'</div></div>'
    +'<p class="muted small">O valor perdido usa o peso da última pesagem e a cotação informada na hora do lançamento.</p>';
  }
- return h+seg2()+'<div id="simForm">'+simForm()+'</div><div class="card" id="simOut" style="margin-top:12px"></div>';
+ return h+seg2()+'<div id="simForm">'+(state.simMode==='cria'?criaForm():simForm())+'</div><div class="'+(state.simMode==='cria'?'stack':'card')+'" id="simOut" style="margin-top:12px"></div>';
 }
-function seg2(){return '<div class="seg" role="group"><button data-a="simmode" data-v="comprar" aria-pressed="'+(state.simMode==='comprar')+'">Comprar e engordar</button><button data-a="simmode" data-v="vender" aria-pressed="'+(state.simMode==='vender')+'">Vender o que tenho</button></div>'}
+function seg2(){return '<div class="seg" role="group"><button data-a="simmode" data-v="comprar" aria-pressed="'+(state.simMode==='comprar')+'">Engorda</button><button data-a="simmode" data-v="vender" aria-pressed="'+(state.simMode==='vender')+'">Venda</button><button data-a="simmode" data-v="cria" aria-pressed="'+(state.simMode==='cria')+'">Cria com matrizes</button></div>'}
 function simForm(){
  var m=state.sim;
  if(state.simMode==='comprar')return '<div class="card"><div class="grid2">'
@@ -661,7 +666,9 @@ function simForm(){
 }
 var rowsHTML=function(a){return '<dl class="rows" style="margin:0">'+a.map(function(r){return '<div'+(r[2]?' class="total"':'')+'><dt>'+r[0]+'</dt><dd>'+r[1]+'</dd></div>'}).join('')+'</dl>'};
 function simCalc(){
- var o=$('#simOut');if(!o)return;var m=state.sim,h;
+ var o=$('#simOut');if(!o)return;
+ if(state.simMode==='cria'){criaCalc();return}
+var m=state.sim,h;
  if(state.simMode==='comprar'){
   var dias=(m.pOut-m.pIn)/m.gmd;
   if(!(m.gmd>0)||!(m.pOut>m.pIn)||!(m.qtd>0)||!(m.rend>0)){o.innerHTML='<div class="muted">Confira os pesos e o ganho por dia. O peso de venda precisa ser maior que o de compra.</div>';return}
@@ -731,6 +738,172 @@ function admListHTML(){
 function vAdm(){
  if(!isAdmin())return '';
  return '<input class="search" id="admBusca" type="search" placeholder="Buscar por nome ou e-mail" value="'+esc(state.admQ)+'" aria-label="Buscar cadastro"><div id="admList">'+admListHTML()+'</div>';
+}
+
+/* ---------- simulador de cria e painel de patrimônio ---------- */
+var DM=30.4375,GEST=283,REND_MATRIZ=.48,GMD_NOVILHA=.5,PESO_NASC=32;
+function addMonthsD(s,n){var y=+s.slice(0,4),m=+s.slice(5,7)-1+n,d=+s.slice(8,10);y+=Math.floor(m/12);m=((m%12)+12)%12;var last=new Date(Date.UTC(y,m+1,0)).getUTCDate();return y+'-'+p2(m+1)+'-'+p2(Math.min(d,last))}
+var sumA=function(a){return a.reduce(function(s,x){return s+x},0)};
+
+/* Simula mês a mês: compra das matrizes, estação de monta de cada ano, partos (283 dias),
+   desmama e venda dos bezerros, novilhas retidas que viram matrizes, custos e estoque final. */
+function criaSim(p){
+ var N=Math.max(1,Math.min(10,Math.round(p.anos))),ini=p.inicio||TODAY,fim=addMonthsD(ini,12*N);
+ var desmD=Math.round(p.desm*DM),idadeD=Math.round(p.idade1*DM),meio=Math.round(p.estacao/2);
+ var gmdB=(p.pesoDesm-PESO_NASC)/Math.max(1,desmD);
+ var R={N:N,ini:ini,fim:fim,coh:[],Ms:[],est:[],porAno:[],anos:[],tot:{compra:p.qtd*p.precoVaca,insem:0,manut:0,mineral:0,sanid:0,venda:0,mineralKg:0}};
+ var M=p.qtd,k,m,y;
+ for(y=0;y<N;y++)R.porAno.push({ent:0,sai:0});
+ R.porAno[0].sai+=R.tot.compra;
+ for(k=0;k<N;k++){
+  var d0=addMonthsD(ini,12*k);
+  if(k>0)M*=1-p.mortMat/100;
+  R.coh.forEach(function(c){if(!c.join&&c.ret>0&&dd(c.nasc,d0)>=idadeD){c.join=d0;M+=c.ret}});
+  var E=M,P=E*p.taxa/100,B=P*(1-p.mortBez/100),nasc=addDays(d0,GEST+meio),desm=addDays(nasc,desmD);
+  var c={k:k,est:d0,E:E,P:P,B:B,nasc:nasc,desm:desm,pIni:addDays(d0,GEST),pFim:addDays(d0,GEST+p.estacao),mach:B/2,fem:B/2,ret:0,vendF:0,join:null};
+  if(p.modo==='reter'){c.ret=c.fem*p.pctRet/100;c.vendF=c.fem-c.ret}else c.vendF=c.fem;
+  R.coh.push(c);R.Ms.push(M);R.est.push(d0);
+  var ci=E*p.custoInsem;R.tot.insem+=ci;R.porAno[k].sai+=ci;
+ }
+ var snap=function(date){var H=0,CF=0;
+  R.coh.forEach(function(c){if(c.nasc<=date&&date<c.desm)CF+=c.B;if(c.ret>0&&c.desm<=date&&!(c.join&&c.join<=date))H+=c.ret});
+  return {H:H,CF:CF}};
+ R.snap=snap;
+ for(m=0;m<12*N;m++){
+  var dm=addMonthsD(ini,m),s=snap(dm),Mm=R.Ms[Math.floor(m/12)];y=Math.floor(m/12);
+  var man=(Mm+s.H)*p.custoMes,kg=((Mm+s.H)*p.gVaca+s.CF*p.gBez)/1000*DM,mi=kg*p.pkMin;
+  R.tot.manut+=man;R.tot.mineral+=mi;R.tot.mineralKg+=kg;R.porAno[y].sai+=man+mi;
+ }
+ R.coh.forEach(function(c){
+  var yb=Math.min(N-1,Math.floor(dd(ini,c.nasc)/365.25));
+  if(c.nasc<=fim){var cs=c.B*p.sanBez;R.tot.sanid+=cs;R.porAno[yb].sai+=cs}
+  if(c.desm<=fim){
+   var v=c.mach*p.pesoDesm*p.pkM+c.vendF*p.pesoDesm*p.pkF,ys=Math.min(N-1,Math.floor(dd(ini,c.desm)/365.25));
+   c.venda=v;c.vendido=c.mach+c.vendF;R.tot.venda+=v;R.porAno[ys].ent+=v;
+  }else{c.venda=0;c.vendido=0}
+ });
+ R.custo=R.tot.compra+R.tot.insem+R.tot.manut+R.tot.mineral+R.tot.sanid;
+ for(y=0;y<N;y++){var de=addDays(addMonthsD(ini,12*(y+1)),-1),s2=snap(de);R.anos.push({l:'Ano '+(y+1),M:R.Ms[y],H:s2.H,CF:s2.CF})}
+ var sf=snap(fim);
+ R.fim_={M:R.Ms[N-1],H:sf.H,CF:sf.CF};
+ R.finH=[];R.finCF=[];
+ R.coh.forEach(function(c){
+  if(c.ret>0&&c.desm<=fim&&!(c.join&&c.join<=fim))R.finH.push({n:c.ret,w:Math.min(p.pesoMat,p.pesoDesm+GMD_NOVILHA*dd(c.desm,fim))});
+  if(c.nasc<=fim&&fim<c.desm)R.finCF.push({n:c.B,w:PESO_NASC+gmdB*dd(c.nasc,fim)});
+ });
+ R.valor=function(f){
+  var ar=p.arroba*f,pm=(p.pkM+p.pkF)/2*f,a=REND_MATRIZ/15*ar;
+  return R.fim_.M*p.pesoMat*a+sumA(R.finH.map(function(x){return x.n*x.w*a}))+sumA(R.finCF.map(function(x){return x.n*x.w*pm}));
+ };
+ R.cen=[.9,1,1.1].map(function(f){var v=R.valor(f),l=R.tot.venda+v-R.custo;return {f:f,ar:p.arroba*f,valor:v,lucro:l,roi:R.custo?l/R.custo:0}});
+ return R;
+}
+
+function stackChart(items,cols,label){
+ var W=340,H=210,L=40,Rr=6,T=16,B=26,n=items.length,slot=(W-L-Rr)/n,bw=Math.min(44,slot*.62);
+ var mx=Math.max.apply(null,items.map(function(i){return sumA(i.v)}))||1,step=nice(mx/4),v;mx=Math.ceil(mx/step)*step;
+ var y=function(a){return T+(1-a/mx)*(H-T-B)};
+ var s=svgOpen(W,H,label);
+ for(v=0;v<=mx+1e-9;v+=step)s+='<line x1="'+L+'" x2="'+(W-Rr)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--line)"/><text class="t" x="'+(L-6)+'" y="'+(y(v)+3)+'" text-anchor="end">'+num(v)+'</text>';
+ items.forEach(function(it,i){
+  var x=L+i*slot+(slot-bw)/2,acc=0;
+  it.v.forEach(function(a,j){if(a<=0)return;s+='<rect x="'+x+'" y="'+y(acc+a)+'" width="'+bw+'" height="'+(y(acc)-y(acc+a))+'" fill="var('+cols[j]+')"/>';acc+=a});
+  s+='<text class="tv" x="'+(x+bw/2)+'" y="'+(y(acc)-4)+'" text-anchor="middle">'+num(acc)+'</text><text class="t" x="'+(x+bw/2)+'" y="'+(H-9)+'" text-anchor="middle">'+it.l+'</text>';
+ });
+ return s+'</svg>';
+}
+
+/* ---------- formulário e resultado do simulador de cria ---------- */
+var cn=function(key,label,unit,step){return field('c_'+key,label,inputNum('c_'+key,state.cria[key],unit,'data-cria="'+key+'"'+(step?' step="'+step+'"':'')))};
+function criaForm(){
+ var p=state.cria;
+ return '<div class="stack"><div class="card"><h3>Compra</h3><div class="grid2" style="margin-top:10px">'
+  +cn('qtd','Quantas vacas vai comprar','cab')+cn('precoVaca','Preço por vaca','R$')
+  +field('c_inicio','Início da inseminação','<input id="c_inicio" type="date" data-cria="inicio" value="'+esc(p.inicio)+'">')
+  +cn('anos','Por quantos anos repetir','anos')+'</div></div>'
+  +'<div class="card"><h3>Reprodução</h3><div class="grid2" style="margin-top:10px">'
+  +cn('taxa','Taxa de prenhez','%')+cn('custoInsem','Inseminação por vaca por ano','R$')
+  +cn('estacao','Duração da estação de monta','dias')+cn('mortMat','Mortes de vacas por ano','%')
+  +cn('mortBez','Mortes de bezerros até a desmama','%')+cn('desm','Desmama com','meses')+'</div></div>'
+  +'<div class="card"><h3>Venda dos bezerros</h3><div class="grid2" style="margin-top:10px">'
+  +cn('pesoDesm','Peso na desmama','kg')+cn('pkM','Preço do macho por kg','R$')+cn('pkF','Preço da fêmea por kg','R$')
+  +field('c_modo','O que fazer com as fêmeas','<select id="c_modo" data-cria="modo">'+options([['reter','Reter como matrizes'],['vender','Vender todas']],p.modo)+'</select>')
+  +cn('pctRet','Fêmeas retidas','%')+cn('idade1','Entram na inseminação com','meses')+'</div></div>'
+  +'<div class="card"><h3>Custos e valor do gado</h3><div class="grid2" style="margin-top:10px">'
+  +cn('custoMes','Manutenção por vaca por mês','R$')+cn('sanBez','Sanidade por bezerro','R$')
+  +cn('gVaca','Sal mineral por vaca','g/dia')+cn('gBez','Sal mineral por bezerro','g/dia')
+  +cn('pkMin','Preço do sal mineral por kg','R$')+cn('pesoMat','Peso da vaca','kg')
+  +cn('arroba','Preço da @ hoje','R$')+'</div></div></div>';
+}
+function criaMsg(p){
+ if(!(p.qtd>0))return 'Informe quantas vacas vai comprar.';
+ if(!(p.taxa>0&&p.taxa<=100))return 'A taxa de prenhez precisa ficar entre 1 e 100%.';
+ if(!(p.anos>=1&&p.anos<=10))return 'Escolha de 1 a 10 anos.';
+ if(!(p.desm>=3&&p.desm<=12))return 'A desmama costuma ser entre 3 e 12 meses.';
+ if(!(p.pesoDesm>PESO_NASC))return 'O peso na desmama precisa ser maior que o peso ao nascer.';
+ if(!(p.arroba>0&&p.pkM>0&&p.pkF>0))return 'Informe o preço da @ e o preço do kg do bezerro.';
+ if(!(p.pesoMat>0))return 'Informe o peso da vaca.';
+ if(!p.inicio)return 'Escolha a data de início da inseminação.';
+ if(p.pctRet<0||p.pctRet>100)return 'As fêmeas retidas ficam entre 0 e 100%.';
+ return '';
+}
+var pctF=function(x){return (x<0?'−':'')+num(Math.abs(x)*100,1)+'%'};
+function criaCalc(){
+ var o=$('#simOut');if(!o)return;var p=state.cria,msg=criaMsg(p);
+ if(msg){o.innerHTML='<div class="card"><div class="muted">'+esc(msg)+'</div></div>';return}
+ var R=criaSim(p),b=R.cen[1],N=R.N,T=R.tot,cls=b.roi>=.15*N?'good':b.roi>=0?'warn':'bad';
+ var primeira=R.coh[0],pv=R.coh.filter(function(c){return c.vendido>0})[0];
+ var h='<div class="verdict '+cls+'"><b>'+(b.roi>=0?'Lucro':'Prejuízo')+' de '+brl(Math.abs(b.lucro))+' em '+N+(N>1?' anos':' ano')+'</b><span>ROI de '+pctF(b.roi)+' no período, cerca de '+pctF(b.roi/N)+' ao ano, com a @ a '+brl2(p.arroba)+'.</span></div>'
+  +'<div class="card"><div class="grid2">'
+  +'<div><div class="l">Você gasta no total</div><div class="v">'+brl(R.custo)+'</div></div>'
+  +'<div><div class="l">Vende em bezerros</div><div class="v">'+brl(T.venda)+'</div></div>'
+  +'<div><div class="l">Gado em estoque no fim</div><div class="v">'+brl(b.valor)+'</div></div>'
+  +'<div><div class="l">Lucro</div><div class="v" style="color:'+(b.lucro>=0?'var(--green)':'var(--bad)')+'">'+brl(b.lucro)+'</div></div></div>'
+  +'<p class="muted small" style="margin:10px 0 0">ROI é o lucro dividido por tudo que você gasta: compra das vacas, inseminação, manutenção, sal mineral e sanidade. O lucro soma as vendas de bezerros e o valor do gado que sobra no fim.</p></div>';
+ h+='<div class="card"><h3>Calendário</h3><p class="muted small" style="margin:4px 0 8px">Primeiros partos: '+fd(primeira.pIni)+' a '+fd(primeira.pFim)+'. '+(pv?'Primeira venda de bezerros: '+fd(pv.desm)+'.':'Nenhuma venda dentro do período.')+'</p><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Ano</th><th>Inseminação</th><th>Prenhas</th><th>Partos</th><th>Desmama</th><th>Bezerros</th></tr></thead><tbody>'
+  +R.coh.map(function(c){return '<tr><td>'+(c.k+1)+'</td><td>'+fdm(c.est)+'/'+c.est.slice(2,4)+'</td><td>'+num(c.P)+'</td><td>'+fdm(c.pIni)+' a '+fdm(c.pFim)+'</td><td>'+(c.desm<=R.fim?fdm(c.desm)+'/'+c.desm.slice(2,4):'depois do fim')+'</td><td>'+num(c.B)+'</td></tr>'}).join('')+'</tbody></table></div></div>';
+ h+='<div class="card"><h3>Rebanho no fim de cada ano</h3><div class="muted small" style="margin:4px 0 6px">Cabeças</div>'+stackChart(R.anos.map(function(a){return {l:a.l,v:[a.M,a.H,a.CF]}}),['--c1','--c3','--c2'],'Cabeças de gado no fim de cada ano')
+  +'<div class="legend"><span><i class="dot" style="background:var(--c1)"></i>Matrizes</span><span><i class="dot" style="background:var(--c3)"></i>Novilhas retidas</span><span><i class="dot" style="background:var(--c2)"></i>Bezerros ao pé</span></div></div>';
+ h+='<div class="card"><h3>Entrou e saiu por ano</h3>'+groupBars(R.porAno.map(function(a,i){return {l:'Ano '+(i+1),a:a.ent,b:a.sai}}),'Vendas e custos por ano')
+  +'<div class="legend"><span><i class="dot" style="background:var(--c1)"></i>Vendas de bezerros</span><span><i class="dot" style="background:var(--c2)"></i>Custos</span></div></div>';
+ h+='<div class="card"><h3>Valor do gado no fim, com a @ variando</h3><div class="stack" style="margin-top:10px">'
+  +R.cen.map(function(c){var t=c.f<1?'@ 10% abaixo':c.f>1?'@ 10% acima':'@ de hoje';
+   return '<div class="between" style="gap:12px;align-items:flex-start"><div><b>'+t+'</b><div class="muted small">'+brl2(c.ar)+' por @</div></div><div style="text-align:right;font-variant-numeric:tabular-nums"><div><b>'+brl(c.valor)+'</b> em estoque</div><div class="small" style="color:'+(c.lucro>=0?'var(--green)':'var(--bad)')+'">lucro '+brl(c.lucro)+' · ROI '+pctF(c.roi)+'</div></div></div>'}).join('')+'</div></div>';
+ var gastos=[{label:'Compra das vacas',v:T.compra,cor:'--c4'},{label:'Inseminação',v:T.insem,cor:'--c3'},{label:'Manutenção (pasto, mão de obra)',v:T.manut,cor:'--c1'},{label:'Sal mineral',v:T.mineral,cor:'--c2'},{label:'Sanidade dos bezerros',v:T.sanid,cor:'--c5'}];
+ h+='<div class="card"><h3>Para onde vai o dinheiro</h3>'+hbars(gastos,function(v){return brl(v)+' · '+num(v/R.custo*100)+'%'})
+  +'<p class="muted small" style="margin:6px 0 0">Sal mineral no período: '+num(T.mineralKg)+' kg, cerca de '+num(T.mineralKg/25)+' sacos de 25 kg.</p></div>';
+ h+='<p class="muted small">Premissas do cálculo: gestação de 283 dias, metade machos e metade fêmeas, preços do bezerro e custos constantes, nenhuma vaca descartada, novilhas retidas ganhando 0,5 kg por dia. Troque os números pelos da sua fazenda.</p>';
+ o.innerHTML=h;
+}
+
+/* ---------- painel de patrimônio ---------- */
+function patProj(){
+ var c=state.cria,pren=animals.filter(function(a){return a.rep==='prenha'&&a.parto});
+ if(!pren.length)return '<div class="muted">Nenhuma vaca prenha registrada. Registre as prenhezes na aba Reprodução para ver a projeção.</div>';
+ var por=(c.pkM+c.pkF)/2*c.pesoDesm*(1-c.mortBez/100),nowK=mesAtual(),cnt=[],i,k;
+ for(i=0;i<12;i++)cnt.push(0);
+ pren.forEach(function(a){k=a.parto<TODAY?0:(+monthKey(a.parto).slice(0,4)-+nowK.slice(0,4))*12+(+monthKey(a.parto).slice(5)-+nowK.slice(5));if(k>=0&&k<12)cnt[k]++});
+ var tot=herdValue(),acc=0,pts=[{d:TODAY,l:'hoje',y:tot}],bars=[],nb=0;
+ for(i=0;i<12;i++){var m=+addMonths(nowK,i).slice(5);acc+=cnt[i]*por;nb+=cnt[i];pts.push({d:TODAY,l:MES[m-1],y:tot+acc});bars.push({l:MES[m-1],v:Math.round(cnt[i]*por/1000),p:0,yr:''})}
+ var total=nb,vtot=nb*por;
+ return '<div class="grid2"><div class="card"><div class="l">Vacas prenhas</div><div class="v">'+pren.length+'</div><div class="s">'+num(total)+' partos em 12 meses</div></div><div class="card"><div class="l">Bezerros esperados</div><div class="v">'+num(total*(1-c.mortBez/100),1)+'</div><div class="s">descontadas as mortes</div></div></div>'
+  +'<p class="muted" style="margin:10px 0 6px">Quando desmamados, esses bezerros valem cerca de <b style="color:var(--ink)">'+brl(vtot)+'</b>.</p>'
+  +'<div class="muted small">Valor dos bezerros que nascem em cada mês (R$ mil)</div>'+barChart(bars,'Valor esperado dos bezerros por mês de nascimento')
+  +'<div class="muted small" style="margin-top:12px">Patrimônio do rebanho nos próximos 12 meses (R$ mil)</div>'+lineChart(pts,'Patrimônio projetado com os bezerros das vacas prenhas',{L:46,fmt:function(v){return num(v/1000)},last:function(v){return 'R$ '+num(v/1000)+' mil'}})
+  +'<p class="muted small" style="margin:6px 0 0">Soma o rebanho de hoje com os bezerros que nascem das vacas prenhas, sem contar vendas, mortes futuras nem custos.</p>';
+}
+function vPat(){
+ if(!animals.length)return '<div class="card"><div class="muted">Cadastre animais para ver o patrimônio do rebanho.</div></div>';
+ if(!(state.arroba>0))return '<div class="card"><h3>Informe a cotação da @</h3><p class="muted" style="margin:6px 0 12px">O valor do rebanho depende do preço da @ e do kg do bezerro.</p><button class="btn p block" data-a="arroba">Informar a @</button></div>';
+ var tot=herdValue(),mil=function(v){return 'R$ '+num(v/1000,1)+' mil'};
+ var lotes=LOTES.map(function(l){return {label:l.nome+' ('+stat(l.nome).n+')',v:stat(l.nome).valor,cor:l.cor}}).filter(function(x){return x.v>0}).sort(function(a,b){return b.v-a.v});
+ var sc=[{t:'@ 10% abaixo',f:.9,cor:'--c4'},{t:'@ de hoje',f:1,cor:'--c1'},{t:'@ 10% acima',f:1.1,cor:'--c6'}];
+ return '<div class="card"><div class="l">O rebanho vale hoje</div><div class="v" style="font-size:32px">'+brl(tot)+'</div><div class="s">'+animals.length+' cabeças · @ a '+brl2(state.arroba)+'</div>'
+  +'<div class="muted small" style="margin-top:12px">Valor por lote</div>'+hbars(lotes,mil)+'</div>'
+  +'<div class="card" style="margin-top:10px"><h3>E se a @ variar?</h3>'+hbars(sc.map(function(s){return {label:s.t+' ('+brl2(state.arroba*s.f)+')',v:tot*s.f,cor:s.cor}}),mil)+'</div>'
+  +'<div class="sec"><h2>Projeção com as vacas prenhas</h2><div class="card"><div class="grid2">'
+  +cn('pesoDesm','Peso na desmama','kg')+cn('mortBez','Mortes de bezerros','%')+cn('pkM','Preço do macho por kg','R$')+cn('pkF','Preço da fêmea por kg','R$')
+  +'</div><div id="projOut">'+patProj()+'</div></div></div>';
 }
 
 /* ---------- formulários ---------- */
@@ -918,7 +1091,7 @@ function sheetArroba(){
  $('#fA').onsubmit=function(e){e.preventDefault();var v=numVal('a_v'),k=numVal('a_k')||0;
   if(!(v>50&&v<1500))return setErr('a_err','Confira o valor da @.');
   if(k&&!(k>1&&k<200))return setErr('a_err','Confira o preço do kg do bezerro.');
-  state.sim.ar=v;closeSheet();wr(fref().update({arroba:v,bezerroKg:k,arrobaEm:TODAY}),'@ atualizada para '+brl2(v));
+  state.sim.ar=v;state.cria.arroba=v;closeSheet();wr(fref().update({arroba:v,bezerroKg:k,arrobaEm:TODAY}),'@ atualizada para '+brl2(v));
  };
 }
 function sheetAnunciar(){
@@ -1184,6 +1357,7 @@ document.addEventListener('click',function(e){
 });
 document.addEventListener('input',function(e){
  var t=e.target;
+ if(t.dataset&&t.dataset.cria){var kk=t.dataset.cria;state.cria[kk]=(kk==='inicio'||kk==='modo')?t.value:(parseFloat(t.value)||0);if($('#projOut'))$('#projOut').innerHTML=patProj();if($('#simOut'))simCalc();return}
  if(t.id==='admBusca'){state.admQ=t.value.trim();$('#admList').innerHTML=admListHTML();return}
  if(t.id==='busca'){state.busca=t.value.trim();state.limit=40;$('#animList').innerHTML=animListHTML();return}
  if(t.dataset&&t.dataset.sim&&t.dataset.sim!=='vLote'){state.sim[t.dataset.sim]=parseFloat(t.value)||0;simCalc()}
