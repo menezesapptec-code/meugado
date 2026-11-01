@@ -652,10 +652,10 @@ function vEstoque(){
 
 function lancRow(l){
  return '<div class="row"><div><b style="font-size:15px">'+esc(l.cat)+'</b><div class="muted small">'+fd(l.d)+(l.desc?' · '+esc(l.desc):'')+'</div></div>'
-  +'<div class="r"><span style="color:'+(l.tipo==='entrada'?'var(--green)':l.tipo==='invest'?'var(--c4)':'var(--ink)')+'">'+(l.tipo==='entrada'?'+ ':l.tipo==='invest'?'':'− ')+brl(l.v)+'</span><button class="linkbtn muted small" data-a="rmlanc" data-id="'+esc(l.id)+'">Apagar</button></div></div>';
+  +'<div class="r"><span style="color:'+(l.tipo==='entrada'?'var(--green)':l.tipo==='invest'?'var(--c3)':'var(--ink)')+'">'+(l.tipo==='entrada'?'+ ':l.tipo==='invest'?'':'− ')+brl(l.v)+'</span><button class="linkbtn muted small" data-a="rmlanc" data-id="'+esc(l.id)+'">Apagar</button></div></div>';
 }
 function investCard(){var t=investTotal();if(!(t>0))return '';var m=investMes();
- return '<div class="card" style="margin-top:10px;border-left:4px solid var(--c4)"><div class="l">Investimento em gado</div><div class="v">'+brl(t)+'</div><div class="s">'+(m>0?brl(m)+' investidos em '+mesNome(mesAtual())+' · ':'')+'compra de animais não conta como gasto</div></div>'}
+ return '<div class="card" style="margin-top:10px;border-left:4px solid var(--c3)"><div class="l">Investimento em gado</div><div class="v">'+brl(t)+'</div><div class="s">'+(m>0?brl(m)+' investidos em '+mesNome(mesAtual())+' · ':'')+'compra de animais não conta como gasto</div></div>'}
 function vFin(){
  if(!isDono())return '<div class="card"><h3>Só o dono vê o financeiro</h3><p class="muted">Na visão do ajudante, valores e gastos ficam escondidos.</p></div>';
  var s=state.sub.fin,h=seg('fin',[['resumo','Resumo'],['pat','Patrimônio'],['gastos','Gastos'],['perdas','Perdas'],['sim','Simulador']]);
@@ -1411,38 +1411,60 @@ function genCode(){var cs='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',a=new Uint8Array(6)
 
 /* ---------- dados de exemplo ---------- */
 function loadExample(){
- var rnd=mulberry32(7),R=function(a,b){return a+(b-a)*rnd()},RI=function(a,b){return Math.floor(R(a,b+1))};
+ var rnd=mulberry32(11),R=function(a,b){return a+(b-a)*rnd()},RI=function(a,b){return Math.floor(R(a,b+1))};
  var byFase=function(f){return (LOTES.filter(function(l){return l.fase===f})[0]||LOTES[0]).nome};
- var b=db.batch(),now=Date.now(),offs=[-150,-120,-90,-60,-30,-4];
- var put=function(c,id,o){o.exemplo=true;o.criado=now;b.set(id?col(c).doc(id):col(c).doc(),o)};
+ var ops=[],now=Date.now();
+ var put=function(c,id,o){o.exemplo=true;o.criado=now;ops.push([id?col(c).doc(id):col(c).doc(),o])};
+ var offs=[-180,-150,-120,-90,-60,-30,-5];
  function animal(id,lote,sexo,idade,w,g,cria,extra){
-  var nasc=addDays(TODAY,-idade),ref=cria?nasc:addDays(TODAY,-150),base=cria?32:w,pes=[];
-  offs.forEach(function(o){var d=addDays(TODAY,o);if(dd(nasc,d)>12)pes.push({d:d,kg:Math.round(base+g*dd(ref,d)+R(-4,4))})});
+  var nasc=addDays(TODAY,-idade),ref=cria?nasc:addDays(TODAY,-180),base=cria?32:w,pes=[];
+  offs.forEach(function(o){var d=addDays(TODAY,o);if(dd(nasc,d)>12)pes.push({d:d,kg:Math.round(base+g*dd(ref,d)+R(-5,5))})});
   put('animais',id,Object.assign({sexo:sexo,lote:lote,nasc:nasc,pes:pes},extra||{}));
  }
- var i;
- for(i=0;i<14;i++)animal('EX-M'+(101+i),byFase('Matriz'),'F',RI(1500,3600),R(400,445),R(.02,.2),false,i<8?{rep:'prenha',parto:addDays(TODAY,RI(8,260))}:{rep:i<11?'vazia':'lact'});
- for(i=0;i<8;i++)animal('EX-B'+(201+i),byFase('Cria'),i%2?'M':'F',RI(25,140),0,R(.6,.9),true);
- for(i=0;i<10;i++)animal('EX-R'+(301+i),byFase('Recria'),i<7?'M':'F',RI(300,480),R(185,225),R(.4,.65),false);
- for(i=0;i<12;i++)animal('EX-E'+(401+i),byFase('Engorda'),'M',RI(600,850),R(305,355),R(.78,1),false);
+ var i,racas=['Nelore','Nelore','Nelore','Cruzado','Cruzado','Angus'],rc=function(){return racas[RI(0,racas.length-1)]},
+  origs=['Fazenda Santa Maria','Leilão Barra do Garças','Fazenda Boa Esperança','Agropecuária Araguaia'];
+ var Mz=byFase('Matriz'),Cr=byFase('Cria'),Rc=byFase('Recria'),Eg=byFase('Engorda');
+ /* 150 matrizes prenhas, partos espalhados pelos próximos 9 meses */
+ for(i=0;i<150;i++)animal('EX-M'+(1001+i),Mz,'F',RI(1500,3800),R(390,470),R(.02,.18),false,{rep:'prenha',parto:addDays(TODAY,RI(4,285)),raca:rc(),origem:origs[i%4],compra:addDays(TODAY,-RI(200,330))});
+ /* 50 matrizes que já pariram, em datas diferentes; as 20 mais recentes têm o bezerro ao pé cadastrado */
+ var paridas=[];
+ for(i=0;i<50;i++){var dn=Math.round(8+i*3.2+R(0,2.5));paridas.push(dn);
+  animal('EX-M'+(1151+i),Mz,'F',RI(1500,3800),R(400,470),R(.02,.15),false,{rep:'lact',raca:rc(),origem:origs[i%4],compra:addDays(TODAY,-RI(250,400))})}
+ for(i=0;i<20;i++)animal('EX-B'+(2001+i),Cr,i%2?'M':'F',paridas[i],0,R(.65,.95),true,{mae:'EX-M'+(1151+i),raca:rc()});
+ for(i=0;i<15;i++)animal('EX-R'+(3001+i),Rc,i<9?'M':'F',RI(300,480),R(185,230),R(.4,.65),false,{raca:rc(),origem:origs[i%4],compra:addDays(TODAY,-RI(100,200))});
+ for(i=0;i<15;i++)animal('EX-E'+(4001+i),Eg,'M',RI(600,850),R(305,360),R(.78,1.02),false,{raca:rc(),origem:origs[i%4],compra:addDays(TODAY,-RI(120,240))});
  var ids=[];
- [['insumo','Ração proteinada (saco 25 kg)',42,'sacos',20],['insumo','Sal mineral (saco 25 kg)',12,'sacos',15],['insumo','Milho em grão',3.2,'t',2],['insumo','Silagem de milho',48,'t',30],['insumo','Diesel',140,'L',100],
-  ['sanidade','Vacina brucelose (B19)',36,'doses',20,14],['sanidade','Vacina clostridioses',180,'doses',100,170],['sanidade','Vacina raiva',90,'doses',60,90],['sanidade','Vermífugo (ivermectina)',600,'mL',300,250],['sanidade','Carrapaticida pour-on',8,'L',10,120]
+ [['insumo','Ração proteinada (saco 25 kg)',42,'sacos',20],['insumo','Sal mineral (saco 25 kg)',12,'sacos',15],['insumo','Milho em grão',3.2,'t',2],['insumo','Silagem de milho',48,'t',30],['insumo','Diesel',140,'L',100],['insumo','Farelo de soja',1.4,'t',2],['insumo','Núcleo mineral (saco 25 kg)',60,'sacos',30],
+  ['sanidade','Vacina brucelose (B19)',36,'doses',20,14],['sanidade','Vacina clostridioses',180,'doses',100,170],['sanidade','Vacina raiva',90,'doses',60,90],['sanidade','Vermífugo (ivermectina)',600,'mL',300,250],['sanidade','Carrapaticida pour-on',8,'L',10,120],['sanidade','Vacina aftosa',240,'doses',200,60],['sanidade','Antibiótico injetável',180,'mL',250,200]
  ].forEach(function(x){var r=col('estoque').doc();ids.push(r.id);put('estoque',r.id,{tipo:x[0],n:x[1],q:x[2],un:x[3],min:x[4],step:UNID[x[3]]||1,val:x[5]?addDays(TODAY,x[5]):null})});
- put('protocolos',null,{n:'Brucelose nas bezerras',lote:byFase('Cria'),sexo:'F',prazo:addDays(TODAY,12),sanId:ids[5],uso:1,feito:null});
- put('protocolos',null,{n:'Clostridioses nos bezerros',lote:byFase('Cria'),sexo:'',prazo:addDays(TODAY,30),sanId:ids[6],uso:1,feito:null});
- put('protocolos',null,{n:'Vermífugo na recria',lote:byFase('Recria'),sexo:'',prazo:addDays(TODAY,45),sanId:ids[8],uso:6,feito:null});
- var dia=+TODAY.slice(8);
- [18400,9600,4200,3800,2100,1900,1300].forEach(function(v,k){put('lancamentos',null,{tipo:'gasto',cat:['Ração e suplemento','Mão de obra','Sanidade','Pastagem e adubo','Combustível','Manutenção e energia','Outros'][k],v:v,d:mesAtual()+'-'+p2(Math.max(1,Math.min(dia,2+k*2))),desc:''})});
- var ent=[0,31000,58700,22000,64000,38500];
+ put('protocolos',null,{n:'Brucelose nas bezerras',lote:Cr,sexo:'F',prazo:addDays(TODAY,12),sanId:ids[7],uso:1,feito:null});
+ put('protocolos',null,{n:'Clostridioses nos bezerros',lote:Cr,sexo:'',prazo:addDays(TODAY,30),sanId:ids[8],uso:1,feito:null});
+ put('protocolos',null,{n:'Vermífugo na recria',lote:Rc,sexo:'',prazo:addDays(TODAY,45),sanId:ids[10],uso:6,feito:null});
+ put('protocolos',null,{n:'Aftosa em todo o rebanho',lote:Mz,sexo:'',prazo:addDays(TODAY,20),sanId:ids[12],uso:1,feito:null});
+ put('protocolos',null,{n:'Carrapaticida nas matrizes',lote:Mz,sexo:'',prazo:addDays(TODAY,-6),sanId:ids[11],uso:1,feito:null});
+ put('protocolos',null,{n:'Raiva no rebanho',lote:Eg,sexo:'',prazo:addDays(TODAY,-40),sanId:ids[9],uso:1,feito:addDays(TODAY,-38)});
+ var dia=+TODAY.slice(8),cat=['Ração e suplemento','Mão de obra','Sanidade','Pastagem e adubo','Combustível','Manutenção e energia','Outros'];
+ [41800,9600,7400,12300,4100,3900,2600].forEach(function(v,k){put('lancamentos',null,{tipo:'gasto',cat:cat[k],v:v,d:mesAtual()+'-'+p2(Math.max(1,Math.min(dia,2+k*2))),desc:''})});
+ put('lancamentos',null,{tipo:'entrada',cat:'Venda de animais',v:118500,d:mesAtual()+'-01',desc:'Venda de bois gordos'});
+ var ent=[0,131000,158700,92000,164000,138500];
  for(i=1;i<=5;i++){var mk=addMonths(mesAtual(),-i);
-  put('lancamentos',null,{tipo:'gasto',cat:'Ração e suplemento',v:Math.round(R(17000,20000)),d:mk+'-10',desc:''});
-  put('lancamentos',null,{tipo:'gasto',cat:'Mão de obra',v:Math.round(R(9000,10000)),d:mk+'-12',desc:''});
-  put('lancamentos',null,{tipo:'gasto',cat:'Outros',v:Math.round(R(9000,12000)),d:mk+'-15',desc:''});
-  put('lancamentos',null,{tipo:'entrada',cat:'Venda de animais',v:ent[i],d:mk+'-20',desc:'exemplo'});}
- var cs=Object.keys(CAUSAS);
- [0,0,1,5,3].forEach(function(c,k){put('mortes',null,{animal:'EX-X'+k,lote:byFase('Recria'),sexo:'M',causa:cs[c],valor:Math.round(R(2400,5100)),kg:Math.round(R(180,420)),data:addDays(TODAY,-RI(20,300))})});
- wr(b.commit(),'Dados de exemplo carregados');
+  put('lancamentos',null,{tipo:'gasto',cat:'Ração e suplemento',v:Math.round(R(36000,44000)),d:mk+'-10',desc:'Ração e mineral'});
+  put('lancamentos',null,{tipo:'gasto',cat:'Mão de obra',v:Math.round(R(9000,11000)),d:mk+'-05',desc:'Salários'});
+  put('lancamentos',null,{tipo:'gasto',cat:'Sanidade',v:Math.round(R(4000,9000)),d:mk+'-14',desc:'Vacinas e remédios'});
+  put('lancamentos',null,{tipo:'gasto',cat:'Pastagem e adubo',v:Math.round(R(6000,15000)),d:mk+'-18',desc:''});
+  put('lancamentos',null,{tipo:'gasto',cat:'Combustível',v:Math.round(R(3500,4800)),d:mk+'-08',desc:''});
+  put('lancamentos',null,{tipo:'gasto',cat:'Manutenção e energia',v:Math.round(R(2800,4500)),d:mk+'-22',desc:''});
+  put('lancamentos',null,{tipo:'gasto',cat:'Outros',v:Math.round(R(1500,5200)),d:mk+'-26',desc:''});
+  put('lancamentos',null,{tipo:'entrada',cat:'Venda de animais',v:ent[i],d:mk+'-20',desc:'Venda de bois gordos'});
+  if(i%2)put('lancamentos',null,{tipo:'entrada',cat:'Outras entradas',v:Math.round(R(1500,4200)),d:mk+'-28',desc:'Arrendamento de pasto'})}
+ put('lancamentos',null,{tipo:'invest',cat:'Compra de animais',v:690000,d:addDays(TODAY,-215),desc:'150 matrizes de Fazenda Santa Maria (Nelore)'});
+ put('lancamentos',null,{tipo:'invest',cat:'Compra de animais',v:244000,d:addDays(TODAY,-160),desc:'50 matrizes de Leilão Barra do Garças (Cruzado)'});
+ put('lancamentos',null,{tipo:'invest',cat:'Compra de animais',v:61000,d:addDays(TODAY,-95),desc:'15 garrotes de Agropecuária Araguaia (Nelore)'});
+ var cs=Object.keys(CAUSAS),mm=[[0,Rc,'M'],[0,Cr,'F'],[1,Cr,'M'],[5,Rc,'M'],[3,Mz,'F'],[0,Cr,'M'],[2,Mz,'F'],[4,Eg,'M'],[0,Cr,'F'],[1,Rc,'F'],[6,Mz,'F'],[0,Eg,'M']];
+ mm.forEach(function(x,k){var c=cs[x[0]%cs.length],bz=x[1]===Cr;put('mortes',null,{animal:'EX-X'+k,lote:x[1],sexo:x[2],causa:c,valor:Math.round(bz?R(1300,2200):R(2400,6100)),kg:Math.round(bz?R(60,130):R(200,460)),data:addDays(TODAY,-RI(8,330))})});
+ var proms=[],ch,b;
+ for(i=0;i<ops.length;i+=400){ch=ops.slice(i,i+400);b=db.batch();ch.forEach(function(op){b.set(op[0],op[1])});proms.push(b.commit())}
+ wr(Promise.all(proms),'Dados de exemplo carregados: 250 animais, gastos, vendas, estoque e vacinas');
 }
 function rmExample(){
  var cs=['animais','estoque','protocolos','lancamentos','mortes'];
