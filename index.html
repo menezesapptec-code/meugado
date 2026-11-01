@@ -750,8 +750,16 @@ var m=state.sim,h;
 var ago=function(ms){var m=Math.round((Date.now()-ms)/60000);if(m<2)return 'agora';if(m<60)return 'há '+m+' min';var h=Math.round(m/60);if(h<24)return 'há '+h+' h';var d=Math.round(h/24);return d<14?'há '+d+(d>1?' dias':' dia'):'há '+Math.round(d/7)+' semanas'};
 function vMais(){
  var s=state.sub.mais;if(s==='adm'&&!isAdmin())s=state.sub.mais='mkt';
- var h=seg('mais',[['mkt','Marketplace'],['app','Instalar app'],['equipe','Equipe']].concat(isAdmin()?[['adm','Admin']]:[]));
+ var h=seg('mais',[['mkt','Marketplace'],['app','Instalar app'],['equipe','Equipe']].concat(isDono()?[['teste','Dados de teste']]:[]).concat(isAdmin()?[['adm','Admin']]:[]));
+ if(s==='teste'&&!isDono())s=state.sub.mais='mkt';
  if(s==='adm')return h+vAdm();
+ if(s==='teste'){
+  var ex=animals.filter(function(a){return a.exemplo}).length,tem=ex>0||LANC.some(function(l){return l.exemplo})||ESTQ.some(function(x){return x.exemplo});
+  return h+'<div class="card"><h3>Dados de teste</h3><p class="muted" style="margin:6px 0 12px">Abastece a fazenda com dados inventados para você testar todas as telas e relatórios: 250 animais (150 vacas prenhas, 50 já paridas, bezerros, recria e engorda), 6 meses de gastos e vendas, mortes, estoque e vacinas.</p>'
+   +(tem?'<div class="banner">Os dados de teste já estão carregados'+(ex?' ('+ex+' animais)':'')+'.</div><button class="btn block" data-a="rmexemplo2">Remover dados de teste</button>'
+        :'<button class="btn p block" data-a="exemplo2">'+ic('plus',18)+'Carregar dados de teste</button>')
+   +'<p class="muted small" style="margin:12px 0 0">Os dados de teste ficam marcados e somam nos totais junto com os seus animais. O botão de remover apaga só os de teste, nunca os seus.</p></div>';
+ }
  if(s==='mkt'){
   var L=ADS.filter(function(a){return state.mkt==='Todos'||a.t===state.mkt});
   return h+'<button class="btn p block" data-a="anunciar">'+ic('plus',18)+'Anunciar</button><div style="margin-top:12px">'+chips(['Todos','Gado','Insumos','Máquinas'],state.mkt,'mkt')+'</div>'
@@ -1518,6 +1526,8 @@ var A={
  nasceu:function(d){var m=findA(d.id);if(!m)return;closeSheet();sheetNovo({lote:byFaseNome('Cria'),nasc:TODAY,mae:m.id})},
  vazia:function(d){closeSheet();wr(col('animais').doc(d.id).update({rep:'vazia',parto:FV.delete()}),'Matriz '+d.id+' marcada como vazia')},
  exemplo:loadExample,rmexemplo:rmExample,
+ exemplo2:function(){if(animals.some(function(a){return a.exemplo})){toast('Os dados de teste já estão carregados.');return}sheetConfirm('Carregar dados de teste','Vou adicionar 250 animais e lançamentos de teste, junto com o que você já tem. Depois você remove tudo com um toque, em Mais > Dados de teste.','Carregar',loadExample)},
+ rmexemplo2:function(){sheetConfirm('Remover dados de teste','Apaga só os animais, gastos, vendas, estoque e vacinas de teste. O que você cadastrou de verdade fica.','Remover',rmExample)},
  instalar:function(){if(deferred){deferred.prompt();deferred=null}else toast('Abra o menu do navegador e toque em Instalar app (ou Adicionar à Tela de Início).')},
  aprovar:function(d){wr(db.collection('cadastros').doc(d.id).update({status:'aprovado',aprovadoEm:Date.now(),aprovadoPor:S.user.email}),'Cadastro aprovado')},
  reativar:function(d){wr(db.collection('cadastros').doc(d.id).update({status:'aprovado',aprovadoEm:Date.now(),aprovadoPor:S.user.email}),'Acesso reativado')},
