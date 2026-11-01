@@ -157,6 +157,42 @@ a.btn.p{color:var(--on-green)}
 @keyframes splashIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
 @keyframes splashOut{to{opacity:0;visibility:hidden}}
 @media (prefers-reduced-motion:reduce){#splash img{animation:none}}
+/* ---------- Notebook / telas largas: menu lateral, conteúdo largo, folhas viram janela ---------- */
+@media(min-width:760px) and (max-width:999px){
+ .app{max-width:720px}.nav{width:min(100%,720px)}
+ .stack{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+ svg[role=img]{max-width:520px}
+ .sheet-wrap{align-items:center}.sheet{width:min(100%,520px);border-radius:18px}
+}
+@media(min-width:1000px){
+ body{background:var(--bg)}
+ .app{max-width:none;border:0!important;padding:0 40px 48px 264px}
+ .top{max-width:1240px;margin-inline:auto;padding:22px 0 14px}
+ #main,.banner{max-width:1240px;margin-inline:auto}
+ h1{font-size:30px}
+ .nav{left:0;top:0;bottom:0;transform:none;width:224px;flex-direction:column;justify-content:flex-start;gap:4px;border-top:0;border-right:1px solid var(--line);padding:84px 12px 16px;background:var(--surface)}
+ .nav::before{content:"AIMEX Agro";position:absolute;top:24px;left:20px;font:800 19px/1 var(--display);color:var(--green);letter-spacing:-.01em}
+ .nav::after{content:"Meu Rebanho";position:absolute;top:50px;left:20px;font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+ .nav button{flex:none;min-height:48px;grid-auto-flow:column;grid-template-columns:auto 1fr;justify-items:start;align-content:center;align-items:center;gap:12px;padding:0 14px;font-size:15px;border-radius:10px;text-align:left}
+ .nav button:hover{background:var(--surface2)}
+ .nav button[aria-current=page]{background:var(--green-soft)}
+ .badge{top:50%;transform:translateY(-50%);left:auto;right:12px}
+ .stack{grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:14px}
+ .stack>.verdict{grid-column:1/-1}
+ .grid3{gap:14px}
+ .qa{grid-template-columns:repeat(4,1fr)}
+ .row2{max-width:560px}
+ .seg{display:inline-flex;max-width:100%}.seg button{flex:none;min-width:130px}
+ .card{padding:18px}
+ .hero{padding:24px}.hero .big{font-size:48px}
+ svg[role=img]{max-width:620px}
+ .sheet-wrap{align-items:center}
+ .sheet{width:min(100%,560px);border-radius:18px;max-height:88%;padding:22px 24px}
+ .toast{bottom:28px}
+ .search{max-width:420px}
+ .tbl{font-size:14px}
+ .field input,.field select,.search,.inp input{min-height:44px}
+}
 </style>
 </head>
 <body>
