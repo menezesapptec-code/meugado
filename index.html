@@ -271,7 +271,7 @@ var CAUSAS={
 var state={tab:'inicio',sub:{rebanho:'lotes',estoque:'insumos',fin:'resumo',mais:'mkt'},
  fLote:'Todos',busca:'',atras:false,limit:40,plote:'',mkt:'Todos',simMode:'comprar',arroba:0,bezerroKg:0,simInit:false,admQ:'',criaInit:false,cria:{qtd:100,precoVaca:4500,custoInsem:120,taxa:65,inicio:TODAY,anos:3,desm:7,pesoDesm:190,pkM:17,pkF:15,modo:'reter',pctRet:100,pctReinv:100,idade1:24,estacao:90,mortMat:2,mortBez:4,pesoMat:450,custoMes:70,gVaca:80,gBez:20,pkMin:6.5,sanBez:45,arroba:320},
  sim:{qtd:50,pIn:200,pk:15,pOut:500,gmd:.9,cd:6,ar:0,rend:52,perda:2,vLote:'',vQtd:20,vFrete:60,vEsp:60,vCd:6,vGmd:0,vArF:0},
- curva:{M:[],F:[]},gordoKg:{M:500,F:420},prec:null,};
+ curva:{M:[],F:[]},uf:'MT',bezMax:170,gordoKg:{M:500,F:420},prec:null,};
 var S={stage:'load',user:null,perfil:null,faz:null,authMode:'entrar',nome:''};
 var animals=[],LOTES=[],ESTQ=[],PROTO=[],PERDAS=[],LANC=[],ADS=[],CONV=[],CAD=[];
 var isDono=function(){return !S.perfil||S.perfil.papel==='dono'};
@@ -300,8 +300,9 @@ function precoKgPeso(sx,kg,ar,rend){
  return C[C.length-1].p;
 }
 function valA(a){if(!temPeso(a))return 0;var l=loteDe(a.lote),kg=last(a).kg,sx=a.sexo==='F'?'F':'M';
+ if(l.modo==='kg'&&state.bezerroKg>0&&kg<=(state.bezMax||170))return kg*state.bezerroKg;
  if(curvaOk(sx)){var rend=l.rend||(sx==='F'?.48:.52),pk=precoKgPeso(sx,kg,precoArr(a),rend);if(pk!=null)return kg*pk}
- return l.modo==='kg'?kg*state.bezerroKg:kg*l.rend/15*precoArr(a)}
+ var rd=l.rend||(sx==='F'?.48:.52);return (l.modo==='kg'&&!(precoArr(a)>0))?kg*state.bezerroKg:kg*rd/15*precoArr(a)}
 function stat(nome){
  var L=animals.filter(function(a){return a.lote===nome&&temPeso(a)}),n=animals.filter(function(a){return a.lote===nome}).length;
  var peso=L.length?L.reduce(function(s,a){return s+last(a).kg},0)/L.length:0;
@@ -451,7 +452,7 @@ function startData(){
  stopData();
  listen(fref(),function(d){
   S.faz=d.exists?d.data():null;
-  if(S.faz){state.arroba=+S.faz.arroba||0;state.bezerroKg=+S.faz.bezerroKg||0;state.arrobaVaca=+S.faz.arrobaVaca||0;state.arrobaNovilha=+S.faz.arrobaNovilha||0;state.praca=S.faz.praca||'MT Sudeste';state.cotFonte=S.faz.cotFonte||'';state.mun=S.faz.mun||'Barra do Garças';state.curva={M:S.faz.curvaM||[],F:S.faz.curvaF||[]};state.gordoKg={M:+S.faz.gkM||500,F:+S.faz.gkF||420};if(!state.precDirty)state.prec=null;
+  if(S.faz){state.arroba=+S.faz.arroba||0;state.bezerroKg=+S.faz.bezerroKg||0;state.arrobaVaca=+S.faz.arrobaVaca||0;state.arrobaNovilha=+S.faz.arrobaNovilha||0;state.praca=S.faz.praca||'MT Sudeste';state.cotFonte=S.faz.cotFonte||'';state.mun=S.faz.mun||'Barra do Garças';state.uf=S.faz.uf||'MT';state.bezMax=+S.faz.bezMax||170;state.curva={M:S.faz.curvaM||[],F:S.faz.curvaF||[]};state.gordoKg={M:+S.faz.gkM||500,F:+S.faz.gkF||420};if(!state.precDirty)state.prec=null;
    if(!state.simInit&&state.arroba>0){state.sim.ar=state.arroba;state.simInit=true}
    if(!state.criaInit&&state.arroba>0){state.cria.arroba=state.arroba;if(state.bezerroKg>0){state.cria.pkM=state.bezerroKg;state.cria.pkF=Math.round(state.bezerroKg*9)/10}state.criaInit=true}}
   sched()});
@@ -1053,10 +1054,20 @@ function sheetCompra(){
 }
 
 /* ---------- preços: cotação da @ por categoria e tabela de preço por peso ---------- */
-var MUNS=['Barra do Garças','Cuiabá','Rondonópolis','Sinop','Juara','Matupá','Araputanga','Vila Rica'];
+var UFS=[['AC','Acre'],['AL','Alagoas'],['AP','Amapá'],['AM','Amazonas'],['BA','Bahia'],['CE','Ceará'],['DF','Distrito Federal'],['ES','Espírito Santo'],['GO','Goiás'],['MA','Maranhão'],['MT','Mato Grosso'],['MS','Mato Grosso do Sul'],['MG','Minas Gerais'],['PA','Pará'],['PB','Paraíba'],['PR','Paraná'],['PE','Pernambuco'],['PI','Piauí'],['RJ','Rio de Janeiro'],['RN','Rio Grande do Norte'],['RS','Rio Grande do Sul'],['RO','Rondônia'],['RR','Roraima'],['SC','Santa Catarina'],['SP','São Paulo'],['SE','Sergipe'],['TO','Tocantins']].map(function(x){return [x[0],x[0]+' · '+x[1]]});
+var MUNC={};
+function munOpts(uf){return (MUNC[uf]||[]).map(function(n){return '<option value="'+esc(n)+'"></option>'}).join('')}
+function loadMun(uf){
+ if(MUNC[uf]){var dl=$('#dlMun');if(dl)dl.innerHTML=munOpts(uf);return}
+ try{var c=JSON.parse(localStorage.getItem('mun_'+uf)||'null');if(c&&c.length){MUNC[uf]=c;var dl0=$('#dlMun');if(dl0)dl0.innerHTML=munOpts(uf);return}}catch(e){}
+ if(!window.fetch)return;
+ var ok=function(l){if(!Array.isArray(l)||!l.length)return false;MUNC[uf]=l;try{localStorage.setItem('mun_'+uf,JSON.stringify(l))}catch(e){}var dl=$('#dlMun');if(dl&&state.prec&&state.prec.uf===uf)dl.innerHTML=munOpts(uf);return true};
+ fetch('/api/municipios?uf='+uf).then(function(r){return r.json()}).then(function(r){if(r&&r.ok&&ok(r.nomes))return;throw 0}).catch(function(){
+  fetch('https://servicos.ibge.gov.br/api/v1/localidades/estados/'+uf+'/municipios').then(function(r){return r.json()}).then(function(l){ok(Array.isArray(l)?l.map(function(m){return m.nome}).sort(function(a,b){return a.localeCompare(b,'pt-BR')}):null)}).catch(function(){})});
+}
 function initPrec(){
  var cp=function(a){return (a||[]).map(function(p){return {kg:+p.kg,p:+p.p}})};
- state.prec={boi:state.arroba||'',vaca:state.arrobaVaca||'',nov:state.arrobaNovilha||'',k:state.bezerroKg||'',mun:state.mun||'Barra do Garças',M:cp(state.curva.M),F:cp(state.curva.F),gkM:state.gordoKg.M||500,gkF:state.gordoKg.F||420,msg:state.cotFonte||'',fonte:state.cotFonte||''};
+ state.prec={boi:state.arroba||'',vaca:state.arrobaVaca||'',nov:state.arrobaNovilha||'',k:state.bezerroKg||'',bm:state.bezMax||170,uf:state.uf||'MT',mun:state.mun||'Barra do Garças',M:cp(state.curva.M),F:cp(state.curva.F),gkM:state.gordoKg.M||500,gkF:state.gordoKg.F||420,msg:state.cotFonte||'',fonte:state.cotFonte||''};
 }
 var r2=function(x){return Math.round(x*100)/100};
 function precRows(sx){
@@ -1081,18 +1092,21 @@ function precCard(sx){
 }
 function precExemplos(){
  if(!(state.arroba>0)&&!curvaOk('M')&&!curvaOk('F'))return '';
- var ex=function(sx,kg,lote){var ar=sx==='F'?(lote==='Matriz'?state.arrobaVaca:state.arrobaNovilha)||state.arroba:state.arroba,rend=lote==='Matriz'?.48:lote==='Recria'?.5:.52,pk=curvaOk(sx)?precoKgPeso(sx,kg,ar,rend):ar*rend/15;return (sx==='M'?'Macho':'Fêmea')+' de '+kg+' kg: '+brl(kg*pk)+' ('+brl2(pk)+' por kg)'};
- return '<p class="muted small" style="margin:6px 0 0">Com os preços salvos: '+[ex('M',200),ex('M',300),ex('M',450),ex('M',520,'Engorda'),ex('F',200),ex('F',300),ex('F',450,'Matriz')].join(' · ')+'.</p>';
+ var ex=function(sx,kg,lote){if(lote==='Cria'&&state.bezerroKg>0&&kg<=(state.bezMax||170))return 'Bezerro de '+kg+' kg: '+brl(kg*state.bezerroKg)+' ('+brl2(state.bezerroKg)+' por kg)';var ar=sx==='F'?(lote==='Matriz'?state.arrobaVaca:state.arrobaNovilha)||state.arroba:state.arroba,rend=lote==='Matriz'?.48:lote==='Recria'?.5:.52,pk=curvaOk(sx)?precoKgPeso(sx,kg,ar,rend):ar*rend/15;return (sx==='M'?'Macho':'Fêmea')+' de '+kg+' kg: '+brl(kg*pk)+' ('+brl2(pk)+' por kg)'};
+ return '<p class="muted small" style="margin:6px 0 0">Com os preços salvos: '+[ex('M',160,'Cria'),ex('M',200),ex('M',300),ex('M',450),ex('M',520,'Engorda'),ex('F',200),ex('F',300),ex('F',450,'Matriz')].join(' · ')+'.</p>';
 }
 function vPrec(){
  if(!state.prec)initPrec();
- var d=state.prec;
+ var d=state.prec;setTimeout(function(){loadMun(d.uf)},0);
  return '<div class="stack"><div class="card"><h3>Cotação do dia</h3>'
-  +'<p class="muted small" style="margin:4px 0 10px">Busca a @ e os preços por categoria em Mato Grosso (IMEA, Datagro e Scot). Você sempre pode digitar ou corrigir à mão.</p>'
+  +'<p class="muted small" style="margin:4px 0 10px">Escolha o estado e a cidade e toque no botão: ele busca a @ e os preços por categoria (IMEA para Mato Grosso, Datagro e Scot). Você sempre pode digitar ou corrigir à mão.</p>'
   +'<button class="btn p block" type="button" data-a="precauto" id="precBtn">Atualizar automaticamente</button>'
   +'<div class="muted small" id="precSt" style="margin:8px 0 12px">'+esc(d.msg||'')+'</div>'
-  +field('p_mun','Município de referência','<select id="p_mun" data-prec="mun">'+options(MUNS,d.mun)+'</select>')
-  +'<div class="grid3" style="margin-bottom:0">'+field('p_boi','@ boi gordo',inputNum('p_boi',d.boi,'R$','data-prec="boi"'))+field('p_vaca','@ vaca gorda',inputNum('p_vaca',d.vaca,'R$','data-prec="vaca"'))+field('p_nov','@ novilha gorda',inputNum('p_nov',d.nov,'R$','data-prec="nov"'))+'</div>'+field('p_k','Bezerro de lote Cria (preço por kg vivo)',inputNum('p_k',d.k,'R$','data-prec="k"'))+'</div>'
+  +'<div class="grid2">'+field('p_uf','Estado','<select id="p_uf" data-prec="uf">'+options(UFS,d.uf)+'</select>')
+  +field('p_mun','Cidade (digite para buscar)','<input id="p_mun" type="text" list="dlMun" autocomplete="off" placeholder="Digite a cidade" value="'+esc(d.mun)+'" data-prec="mun"><datalist id="dlMun">'+munOpts(d.uf)+'</datalist>')+'</div>'
+  +'<div class="grid3" style="margin-bottom:0">'+field('p_boi','@ boi gordo',inputNum('p_boi',d.boi,'R$','data-prec="boi"'))+field('p_vaca','@ vaca gorda',inputNum('p_vaca',d.vaca,'R$','data-prec="vaca"'))+field('p_nov','@ novilha gorda',inputNum('p_nov',d.nov,'R$','data-prec="nov"'))+'</div></div>'
+  +'<div class="card"><h3>Bezerro de Cria</h3><p class="muted small" style="margin:4px 0 10px">Bezerro de lote Cria vale por kg vivo até o peso limite. Se passar disso na pesagem, ele já passa a valer pela tabela de preço por peso, abaixo.</p><div class="grid2">'
+  +field('p_k','Preço por kg vivo',inputNum('p_k',d.k,'R$','data-prec="k"'))+field('p_bm','Vale por kg até',inputNum('p_bm',d.bm,'kg','data-prec="bm"'))+'</div></div>'
   +precCard('M')+precCard('F')
   +'<div class="card"><button class="btn p block" type="button" data-a="precsave">Salvar preços</button><div class="err" id="prec_err"></div>'
   +'<p class="muted small" style="margin:10px 0 0">Como o rebanho é avaliado: cada animal usa o preço do kg da tabela para o seu peso e sexo. Acima do peso de boi gordo ou vaca gorda, vale pela @ de cada categoria. Se a tabela estiver vazia, usa só a @.</p>'+precExemplos()+'</div></div>';
@@ -1108,9 +1122,11 @@ function parseTabela(txt){
 }
 function precSort(){['M','F'].forEach(function(sx){state.prec[sx]=state.prec[sx].filter(function(r){return r.kg>0&&r.p>0}).sort(function(a,b){return a.kg-b.kg})})}
 function precAuto(){
- var d=state.prec,b=$('#precBtn'),st=$('#precSt');b.disabled=true;st.textContent='Buscando...';
+ var d=state.prec,b=$('#precBtn'),st=$('#precSt');
+ if(MUNC[d.uf]&&d.mun&&MUNC[d.uf].indexOf(d.mun)<0){st.textContent='Escolha uma cidade da lista de '+d.uf+' (digite o começo do nome).';return}
+ b.disabled=true;st.textContent='Buscando...';
  var ctl=window.AbortController?new AbortController():null,t=setTimeout(function(){ctl&&ctl.abort()},20000);
- fetch('/api/cotacao?mun='+encodeURIComponent(d.mun),ctl?{signal:ctl.signal}:{}).then(function(r){if(r.status===404)throw new Error('404');if(!r.ok)throw new Error('http');return r.json()}).then(function(r){
+ fetch('/api/cotacao?uf='+encodeURIComponent(d.uf)+'&mun='+encodeURIComponent(d.mun),ctl?{signal:ctl.signal}:{}).then(function(r){if(r.status===404)throw new Error('404');if(!r.ok)throw new Error('http');return r.json()}).then(function(r){
   clearTimeout(t);if(!r||!r.ok){b.disabled=false;st.textContent='Não consegui ler as cotações agora. Digite os valores à mão.';return}
   var got=[],fontes=[],dt='';
   if(r.boi){d.boi=r.boi.v;got.push('boi gordo');fontes.push(r.boi.fonte);dt=dt||r.boi.data}
@@ -1120,7 +1136,7 @@ function precAuto(){
   if(r.curvaF){d.F=r.curvaF.map(function(x){return {kg:x.kg,p:x.p}});got.push('preço por peso das fêmeas')}
   var falt=[];if(!r.boi)falt.push('boi gordo');if(!r.vaca)falt.push('vaca gorda');if(!r.novilha)falt.push('novilha gorda');if(!r.curvaM)falt.push('machos por peso');if(!r.curvaF)falt.push('fêmeas por peso');
   d.fonte=fontes.filter(function(x,i,a){return a.indexOf(x)===i}).join(' · ')+(dt?' · '+dt:'');
-  d.msg='Atualizado: '+got.join(', ')+'. Fonte: '+d.fonte+'.'+(falt.length?' Não encontrei: '+falt.join(', ')+' (preencha à mão).':'')+' Confira e toque em Salvar preços.';
+  d.msg='Atualizado: '+got.join(', ')+'. Fonte: '+d.fonte+'.'+(r.aviso?' '+r.aviso:'')+(falt.length?' Não encontrei: '+falt.join(', ')+' (preencha à mão).':'')+' Confira e toque em Salvar preços.';
   state.precDirty=true;render();
  }).catch(function(e){clearTimeout(t);b.disabled=false;st.textContent=e&&e.message==='404'?'A busca automática ainda não está instalada no site (falta o arquivo api/cotacao.js no GitHub). Digite os valores à mão por enquanto.':'A busca automática não respondeu agora. Digite os valores à mão.'});
 }
@@ -1132,9 +1148,10 @@ function precSave(){
  if(nv&&!(nv>50&&nv<1500))return setErr('prec_err','Confira a @ da novilha.');
  var bad=['M','F'].some(function(sx){return d[sx].some(function(r){return !(r.kg>=15&&r.kg<=1200&&r.p>=3&&r.p<=60)})});
  if(bad)return setErr('prec_err','Confira a tabela: peso entre 15 e 1.200 kg e preço entre R$ 3 e R$ 60 por kg.');
- var gm=+d.gkM||500,gf=+d.gkF||420;
+ var gm=+d.gkM||500,gf=+d.gkF||420,bm=+d.bm||170;
+ if(!(bm>=60&&bm<=400))return setErr('prec_err','Confira o peso limite do bezerro (entre 60 e 400 kg).');
  state.sim.ar=boi;state.cria.arroba=boi;state.precDirty=false;
- wr(fref().update({arroba:boi,arrobaVaca:vc,arrobaNovilha:nv,bezerroKg:(+d.k>0&&+d.k<100?+d.k:state.bezerroKg),curvaM:d.M,curvaF:d.F,gkM:gm,gkF:gf,mun:d.mun,arrobaEm:TODAY,cotFonte:d.fonte||('Digitado à mão em '+fd(TODAY))}),'Preços salvos');
+ wr(fref().update({arroba:boi,arrobaVaca:vc,arrobaNovilha:nv,bezerroKg:(+d.k>0&&+d.k<100?+d.k:state.bezerroKg),curvaM:d.M,curvaF:d.F,gkM:gm,gkF:gf,mun:d.mun,uf:d.uf,bezMax:bm,arrobaEm:TODAY,cotFonte:d.fonte||('Digitado à mão em '+fd(TODAY))}),'Preços salvos');
  state.prec=null;
 }
 
@@ -1540,7 +1557,7 @@ document.addEventListener('click',function(e){
 document.addEventListener('input',function(e){
  var t=e.target;
 if(t.dataset&&t.dataset.prow&&state.prec){var sx=t.dataset.prow,i=+t.dataset.i,f=t.dataset.f,row=state.prec[sx][i];if(row){row[f]=parseFloat(t.value)||0;state.precDirty=true;var pc=$('#pc_'+sx+i);if(pc)pc.textContent=row.kg>0&&row.p>0?brl(row.kg*row.p):'—'}return}
- if(t.dataset&&t.dataset.prec&&state.prec){var k=t.dataset.prec;state.prec[k]=(k==='mun')?t.value:(parseFloat(t.value)||'');state.precDirty=true;return}
+ if(t.dataset&&t.dataset.prec&&state.prec){var k=t.dataset.prec;state.prec[k]=(k==='mun'||k==='uf')?t.value:(parseFloat(t.value)||'');state.precDirty=true;if(k==='uf'){state.prec.mun='';var mi=$('#p_mun');if(mi)mi.value='';var dl=$('#dlMun');if(dl)dl.innerHTML=munOpts(t.value);loadMun(t.value)}return}
  if(t.dataset&&t.dataset.cria){var kk=t.dataset.cria;state.cria[kk]=(kk==='inicio'||kk==='modo')?t.value:(parseFloat(t.value)||0);if(kk==='modo'){var md=t.value;[['#c_retW',md==='reter'],['#c_idW',md==='reter'],['#c_reinW',md==='comprar']].forEach(function(x){if($(x[0]))$(x[0]).hidden=!x[1]})}
   if($('#projOut'))$('#projOut').innerHTML=patProj();if($('#simOut'))simCalc();return}
  if(t.id==='admBusca'){state.admQ=t.value.trim();$('#admList').innerHTML=admListHTML();return}
